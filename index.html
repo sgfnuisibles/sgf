@@ -834,7 +834,7 @@ function buildPinPopup(pid,passageId,isRO){
     h+='<div class="pp-sec">ÉTAT DU POSTE</div><div class="pp-btns">';
     ETATS.forEach(function(et){
       var isSel=statut===et.id;
-      h+='<button class="pp-btn" style="border-color:'+(isSel?et.color:'var(--bord)')+';background:'+(isSel?et.color+'22':'var(--surf2)')+';color:'+(isSel?et.color:'var(--tx2)')+'" data-fn="setStatut" data-pid="'+pid+'" data-val="'+et.id+'" data-passid="'+passageId+'">'+et.label+'</button>';
+      h+='<button class="pp-btn" style="border-color:'+(isSel?et.color:'var(--bord)')+';background:'+(isSel?et.color+'22':'var(--surf2)')+';color:'+(isSel?et.color:'var(--tx2)')+'" onclick="setStatut('+pid+',\''+et.id+'\','+passageId+')">'+et.label+'</button>';
     });
     h+='</div>';
 
