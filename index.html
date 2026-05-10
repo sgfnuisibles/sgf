@@ -2199,10 +2199,27 @@ function saveContrat(cid){
 function deleteContrat(ctid,cid){
   if(!confirm('Supprimer ce contrat et tous ses passages ?'))return;
   syncOn();
-  db.from('contrats').delete().eq('id',ctid).then(function(){
-    contrats=contrats.filter(function(c){return c.id!==ctid;});
-    passages=passages.filter(function(p){return p.contrat_id!==ctid;});
-    syncOff();toast('Contrat supprimé');openClientDrw(cid);
+  // Récupérer les passages du contrat
+  var passIds=passages.filter(function(p){return p.contrat_id===ctid;}).map(function(p){return p.id;});
+  // Supprimer résultats liés aux passages
+  var delRes=passIds.length>0
+    ?db.from('resultats_postes').delete().in('passage_id',passIds)
+    :Promise.resolve();
+  delRes.then(function(){
+    // Supprimer postes du contrat
+    db.from('postes').delete().eq('contrat_id',ctid).then(function(){
+      // Supprimer passages
+      db.from('passages').delete().eq('contrat_id',ctid).then(function(){
+        // Supprimer contrat
+        db.from('contrats').delete().eq('id',ctid).then(function(){
+          contrats=contrats.filter(function(c){return c.id!==ctid;});
+          passages=passages.filter(function(p){return p.contrat_id!==ctid;});
+          resultats=resultats.filter(function(r){return passIds.indexOf(r.passage_id)<0;});
+          postes=postes.filter(function(p){return p.contrat_id!==ctid;});
+          syncOff();toast('Contrat supprimé');openClientDrw(cid);
+        });
+      });
+    });
   });
 }
 
