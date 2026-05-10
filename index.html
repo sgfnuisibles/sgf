@@ -416,7 +416,10 @@ function gContratPostes(cid,datePassage){
   return postes.filter(function(p){
     if(p.contrat_id!==cid)return false;
     if(datePassage&&p.created_at){
-      return new Date(p.created_at)<=new Date(datePassage);
+      var dPoste=new Date(p.created_at);
+      var dPass=new Date(datePassage);
+      dPass.setHours(23,59,59,999);
+      return dPoste<=dPass;
     }
     return true;
   });
