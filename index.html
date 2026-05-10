@@ -27,7 +27,7 @@
   --acc:#e63030;--acc2:#2ea84a;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--tx);font-family:'DM Sans',sans-serif;min-height:100dvh;cursor:pointer;}
+body{background:var(--bg);color:var(--tx);font-family:'DM Sans',sans-serif;min-height:100dvh;}
 
 /* LOADING */
 #load{position:fixed;inset:0;background:#ffffff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;z-index:9999;transition:opacity .4s;}
@@ -108,7 +108,6 @@ body{background:var(--bg);color:var(--tx);font-family:'DM Sans',sans-serif;min-h
 /* MODAL */
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
 .modal-bg.on{opacity:1;pointer-events:all;}
-.btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
 .modal{background:var(--surf);border:1px solid var(--bord);box-shadow:0 8px 40px rgba(0,0,0,.15);border-radius:14px;width:520px;max-width:96vw;max-height:92vh;overflow-y:auto;transform:translateY(14px);transition:transform .2s;}
 .modal-bg.on .modal{transform:translateY(0);}
 .mh{padding:16px 20px 14px;border-bottom:1px solid var(--bord);display:flex;align-items:center;gap:10px;}
@@ -245,8 +244,8 @@ body{background:var(--bg);color:var(--tx);font-family:'DM Sans',sans-serif;min-h
   .modal{border-radius:14px 14px 0 0;position:fixed;bottom:0;left:0;right:0;width:100%;max-width:100%;max-height:90vh;padding-bottom:calc(56px + env(safe-area-inset-bottom));}
   .modal-bg{align-items:flex-end;}
   .toast{right:10px;left:10px;bottom:calc(66px + env(safe-area-inset-bottom));}
-  #mobnav{position:fixed;bottom:0;left:0;right:0;height:calc(56px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid var(--bord);box-shadow:0 -2px 10px rgba(0,0,0,.08);display:flex;align-items:flex-start;justify-content:space-around;padding-top:6px;padding-bottom:env(safe-area-inset-bottom);z-index:1000;touch-action:manipulation;}
-  .mn-item{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:3px 8px;min-width:48px;position:relative;background:none;border:none;font-family:'DM Sans',sans-serif;touch-action:manipulation;}
+  #mobnav{position:fixed;bottom:0;left:0;right:0;height:calc(56px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid var(--bord);box-shadow:0 -2px 10px rgba(0,0,0,.08);box-shadow:0 -2px 10px rgba(0,0,0,.08);display:flex;align-items:flex-start;justify-content:space-around;padding-top:6px;padding-bottom:env(safe-area-inset-bottom);z-index:200;}
+  .mn-item{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:3px 8px;min-width:48px;position:relative;background:none;border:none;font-family:'DM Sans',sans-serif;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
   .mn-icon{font-size:20px;}
   .mn-lbl{font-size:9px;color:var(--tx3);font-weight:600;text-transform:uppercase;}
   .mn-item.on .mn-lbl{color:#c42020;}
@@ -2009,11 +2008,8 @@ function modalEcheance(){
     '</div>'+
     '<div class="fg"><label>Notes</label><textarea class="fta" id="f-ech-notes" placeholder="Remarques..."></textarea></div>';
   document.getElementById('modal-foot').innerHTML=
-    '<button class="btn btn-g" id="btn-annuler-ech">Annuler</button>'+
-    '<button class="btn btn-r" id="btn-save-ech">Enregistrer</button>';
-  document.getElementById('btn-annuler-ech').addEventListener('click', function(){closeModal();});
-  document.getElementById('btn-save-ech').addEventListener('click', function(){saveEcheance();});
-
+    '<button class="btn btn-g" onclick="closeModal()">Annuler</button>'+
+    '<button class="btn btn-r" onclick="saveEcheance()">Enregistrer</button>';
   document.getElementById('modal-bg').classList.add('on');
 }
 
@@ -2051,16 +2047,13 @@ function modalClient(cid){
     '<div class="fg"><label>Adresse</label><input class="fi" id="f-adr" value="'+c.adresse+'" placeholder="12 Rue..."></div>'+
     '<div class="fg"><label>Notes</label><textarea class="fta" id="f-notes">'+c.notes+'</textarea></div>';
   document.getElementById('modal-foot').innerHTML=
-    '<button class="btn btn-g" id="btn-annuler">Annuler</button>'+
-    '<button class="btn btn-r" id="btn-enregistrer-client">Enregistrer</button>';
-  document.getElementById('btn-annuler').addEventListener('click', function(){closeModal();});
-  document.getElementById('btn-enregistrer-client').addEventListener('click', function(){saveClient(cid||null);});
-
+    '<button class="btn btn-g" onclick="closeModal()">Annuler</button>'+
+    '<button class="btn btn-r" onclick="saveClient('+(cid||'null')+')">Enregistrer</button>';
   document.getElementById('modal-bg').classList.add('on');
 }
 
 function saveClient(cid){
-  document.activeElement && document.activeElement.blur();
+  document.activeElement&&document.activeElement.blur();
   var nom=document.getElementById('f-nom').value.trim();
   if(!nom){toast('⚠️ Nom obligatoire',true);return;}
   var data={nom:nom,type:document.getElementById('f-type').value,tel:document.getElementById('f-tel').value,email:document.getElementById('f-email').value,adresse:document.getElementById('f-adr').value,notes:document.getElementById('f-notes').value};
@@ -2096,11 +2089,8 @@ function modalContact(cid){
     '<div class="fg"><label>Email</label><input class="fi" id="f-cemail" type="email"></div></div>'+
     '<div class="fg"><label><input type="checkbox" id="f-cprinc" style="margin-right:6px">Contact principal</label></div>';
   document.getElementById('modal-foot').innerHTML=
-    '<button class="btn btn-g" id="btn-annuler-ct">Annuler</button>'+
-    '<button class="btn btn-r" id="btn-save-ct">Enregistrer</button>';
-  document.getElementById('btn-annuler-ct').addEventListener('click', function(){closeModal();});
-  document.getElementById('btn-save-ct').addEventListener('click', function(){saveContact(cid);});
-
+    '<button class="btn btn-g" onclick="closeModal()">Annuler</button>'+
+    '<button class="btn btn-r" onclick="saveContact('+cid+')">Enregistrer</button>';
   document.getElementById('modal-bg').classList.add('on');
 }
 
@@ -2137,11 +2127,8 @@ function modalContrat(cid){
     '<div class="fg"><label>Date fin</label><input class="fi" id="f-ctf" type="date" value="'+nys+'"></div></div>'+
     '<div class="fg"><label>Notes</label><textarea class="fta" id="f-ctnotes" placeholder="Détails du contrat..."></textarea></div>';
   document.getElementById('modal-foot').innerHTML=
-    '<button class="btn btn-g" id="btn-annuler-ctn">Annuler</button>'+
-    '<button class="btn btn-r" id="btn-save-ctn">Enregistrer</button>';
-  document.getElementById('btn-annuler-ctn').addEventListener('click', function(){closeModal();});
-  document.getElementById('btn-save-ctn').addEventListener('click', function(){saveContrat(cid);});
-
+    '<button class="btn btn-g" onclick="closeModal()">Annuler</button>'+
+    '<button class="btn btn-r" onclick="saveContrat('+cid+')">Enregistrer</button>';
   document.getElementById('modal-bg').classList.add('on');
 }
 
@@ -2164,13 +2151,7 @@ function openDrw(title,html){
   document.getElementById('drw-bg').classList.add('on');
 }
 function closeDrw(){document.getElementById('drw-bg').classList.remove('on');}
-function closeModal(){
-  document.getElementById('modal-bg').classList.remove('on');
-  var foot=document.getElementById('modal-foot');
-  var body=document.getElementById('modal-body');
-  foot.innerHTML='';
-  body.innerHTML='';
-}
+function closeModal(){document.getElementById('modal-bg').classList.remove('on');}
 
 
 // ═══════════════════════════════════════════
@@ -2262,7 +2243,6 @@ document.addEventListener('click', function(e){
   else if(fn==='pinClick') pinClick(e, parseInt(pid), parseInt(passId));
   else if(fn==='setStatut') setStatut(parseInt(pid), val, parseInt(passId));
 });
-
 
 async function init(){
   try{
