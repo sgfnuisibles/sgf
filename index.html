@@ -584,7 +584,7 @@ function openClientDrw(cid){
           h+='</div>';
         });
       }
-      h+='<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-r btn-sm" onclick="startTerrain('+cid+','+ct.id+')">✅ Démarrer une visite</button><button class="btn btn-g btn-sm" onclick="openPassagesDrw('+ct.id+')">📋 Passages</button></div>';
+      h+='<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-r btn-sm" onclick="startTerrain('+cid+','+ct.id+')">✅ Démarrer une visite</button><button class="btn btn-g btn-sm" onclick="openPassagesDrw('+ct.id+')">📋 Passages</button><button class="btn btn-sm" style="background:rgba(230,48,48,.1);color:var(--acc);border:1px solid rgba(230,48,48,.2)" onclick="deleteContrat('+ct.id+','+cid+')">🗑️</button></div>';
       h+='</div>';
     });
   }
@@ -2183,6 +2183,16 @@ function saveContrat(cid){
     syncOff();
     if(r.error){toast('⚠️ Erreur',true);return;}
     contrats.push(r.data);toast('✓ Contrat créé');closeModal();openClientDrw(cid);
+  });
+}
+
+function deleteContrat(ctid,cid){
+  if(!confirm('Supprimer ce contrat et tous ses passages ?'))return;
+  syncOn();
+  db.from('contrats').delete().eq('id',ctid).then(function(){
+    contrats=contrats.filter(function(c){return c.id!==ctid;});
+    passages=passages.filter(function(p){return p.contrat_id!==ctid;});
+    syncOff();toast('Contrat supprimé');openClientDrw(cid);
   });
 }
 
