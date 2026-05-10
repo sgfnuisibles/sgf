@@ -242,7 +242,7 @@ body{background:var(--bg);color:var(--tx);font-family:'DM Sans',sans-serif;min-h
   .cards{grid-template-columns:1fr;}
   .tbl th,.tbl td{padding:9px 11px;font-size:12px;}
   .drw{width:100%;border-left:none;border-top:1px solid var(--bord);border-radius:14px 14px 0 0;top:auto;height:88vh;}
-  .modal{border-radius:14px 14px 0 0;position:fixed;bottom:0;left:0;right:0;width:100%;max-width:100%;max-height:90vh;}
+  .modal{border-radius:14px 14px 0 0;position:fixed;bottom:0;left:0;right:0;width:100%;max-width:100%;max-height:90vh;padding-bottom:calc(56px + env(safe-area-inset-bottom));}
   .modal-bg{align-items:flex-end;}
   .toast{right:10px;left:10px;bottom:calc(66px + env(safe-area-inset-bottom));}
   #mobnav{position:fixed;bottom:0;left:0;right:0;height:calc(56px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid var(--bord);box-shadow:0 -2px 10px rgba(0,0,0,.08);box-shadow:0 -2px 10px rgba(0,0,0,.08);display:flex;align-items:flex-start;justify-content:space-around;padding-top:6px;padding-bottom:env(safe-area-inset-bottom);z-index:200;}
@@ -2051,8 +2051,8 @@ function modalClient(cid){
     '<button class="btn btn-g" id="btn-annuler">Annuler</button>'+
     '<button class="btn btn-r" id="btn-enregistrer-client">Enregistrer</button>';
   document.getElementById('btn-annuler').addEventListener('click', function(){closeModal();});
-  document.getElementById('btn-enregistrer-client').addEventListener('click', function(){alert('click reçu');saveClient(cid||null);});
-  document.getElementById('btn-enregistrer-client').addEventListener('touchend', function(e){e.preventDefault();alert('touch reçu');saveClient(cid||null);});
+  document.getElementById('btn-enregistrer-client').addEventListener('click', function(){saveClient(cid||null);});
+  document.getElementById('btn-enregistrer-client').addEventListener('touchend', function(e){e.preventDefault();saveClient(cid||null);});
   document.getElementById('modal-bg').classList.add('on');
 }
 
