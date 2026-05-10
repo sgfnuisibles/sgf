@@ -353,8 +353,26 @@ const POSTE_TYPES=[
   {id:'punaise',icon:'🐛',label:'Piège punaises'},
   {id:'mite',icon:'🦋',label:'Piège mites'},
   {id:'uv',icon:'💡',label:'Lampe UV'},
+  {id:'borne_moustique',icon:'🦟',label:'Borne anti-moustiques'},
+  {id:'piege_pondoir',icon:'🪣',label:'Piège pondoir'},
+  {id:'larvicide',icon:'💧',label:'Traitement larvicide'},
   {id:'autre',icon:'📌',label:'Autre'}
 ];
+const POSTE_TYPES_MOUSTIQUES=['borne_moustique','piege_pondoir','larvicide'];
+const ACTIONS_MOUSTIQUES={
+  borne_moustique:[
+    {id:'controle',label:'Contrôle'},
+    {id:'renouvellement_gel',label:'Renouvellement gel CO2'},
+    {id:'renouvellement_attractant',label:'Renouvellement attractants'}
+  ],
+  piege_pondoir:[
+    {id:'controle',label:'Contrôle'},
+    {id:'renouvellement_plaque',label:'Renouvellement plaque collante'}
+  ],
+  larvicide:[
+    {id:'traitement_larvicide',label:'Traitement larvicide naturel'}
+  ]
+};
 const PRODUITS=[
   {id:'placebo',label:'Placebo'},
   {id:'toxique',label:'Toxique'},
@@ -736,10 +754,15 @@ function openTerrain(passageId){
 
   // Type selector
   if(placingType&&!isRO){
+    var contrat=gct(pa.contrat_id);
+    var isMoustique=contrat&&contrat.type==='moustique';
+    var typesDispos=isMoustique
+      ? POSTE_TYPES.filter(function(t){return POSTE_TYPES_MOUSTIQUES.indexOf(t.id)>=0;})
+      : POSTE_TYPES.filter(function(t){return POSTE_TYPES_MOUSTIQUES.indexOf(t.id)<0;});
     h+='<div style="background:rgba(230,48,48,.06);border:1px solid rgba(230,48,48,.15);border-radius:10px;padding:11px;margin-bottom:10px">';
     h+='<div style="font-size:10px;font-weight:700;color:var(--acc);letter-spacing:1px;text-transform:uppercase;margin-bottom:7px">1. TYPE DE POSTE</div>';
     h+='<div class="type-sel">';
-    POSTE_TYPES.forEach(function(t){
+    typesDispos.forEach(function(t){
       h+='<button class="type-btn'+(placingType===t.id?' on':'')+'" onclick="selType(\''+t.id+'\','+passageId+')">'+ t.icon+' '+t.label+'</button>';
     });
     h+='</div><div style="font-size:12px;color:var(--acc)">2. Appuyez sur le plan pour placer</div></div>';
@@ -830,8 +853,25 @@ function buildPinPopup(pid,passageId,isRO){
   if(p.photo_url)h+='<img src="'+p.photo_url+'" class="pp-photo">';
 
   if(!isRO){
-    // Statut
-        // Etat
+    // Si poste moustique → interface dédiée
+    if(POSTE_TYPES_MOUSTIQUES.indexOf(p.type_id)>=0){
+      var actions=ACTIONS_MOUSTIQUES[p.type_id]||[];
+      var actionFaite=res?res.produit||'':'';
+      h+='<div class="pp-sec">ACTION RÉALISÉE</div><div class="pp-btns">';
+      actions.forEach(function(a){
+        var isSel=actionFaite===a.id;
+        h+='<button class="pp-btn'+(isSel?' on-prod':'')+'" onclick="setProduit('+pid+',\''+a.id+'\','+passageId+')">'+a.label+'</button>';
+      });
+      h+='</div>';
+      h+='<div class="pp-sec">ÉTAT</div><div class="pp-btns">';
+      [{id:'controle',label:'Contrôlé',color:'#2ea84a'},{id:'manquant',label:'Manquant',color:'#e63030'}].forEach(function(et){
+        var isSel=statut===et.id;
+        h+='<button class="pp-btn" style="border-color:'+(isSel?et.color:'var(--bord)')+';background:'+(isSel?et.color+'22':'var(--surf2)')+';color:'+(isSel?et.color:'var(--tx2)')+'" onclick="setStatut('+pid+',\''+et.id+'\','+passageId+')">'+et.label+'</button>';
+      });
+      h+='</div>';
+    } else {
+    // Interface classique nuisibles
+    // Etat
     h+='<div class="pp-sec">ÉTAT DU POSTE</div><div class="pp-btns">';
     ETATS.forEach(function(et){
       var isSel=statut===et.id;
@@ -864,8 +904,9 @@ function buildPinPopup(pid,passageId,isRO){
       });
       h+='</div>';
     }
+    } // fin else interface classique
 
-    // Note
+    // Note (commune)
     h+='<div class="pp-sec">NOTE</div>';
     h+='<textarea class="pp-note" rows="2" placeholder="Observations..." onchange="setNote('+pid+',this.value,'+passageId+')">'+ note+'</textarea>';
 
@@ -2123,7 +2164,7 @@ function modalContrat(cid){
   document.getElementById('modal-title').textContent='NOUVEAU CONTRAT';
   document.getElementById('modal-body').innerHTML=
     '<div class="fg"><label>Nom du contrat *</label><input class="fi" id="f-ctn" placeholder="Contrat annuel dératisation"></div>'+
-    '<div class="fg"><label>Type</label><select class="fs" id="f-ctt"><option value="annuel">Annuel</option><option value="mensuel">Mensuel</option><option value="trimestriel">Trimestriel</option><option value="ponctuel">Ponctuel</option></select></div>'+
+    '<div class="fg"><label>Type</label><select class="fs" id="f-ctt"><option value="annuel">Annuel</option><option value="mensuel">Mensuel</option><option value="trimestriel">Trimestriel</option><option value="ponctuel">Ponctuel</option><option value="moustique">🦟 Anti-moustiques</option></select></div>'+
     '<div class="fg2"><div class="fg"><label>Date début</label><input class="fi" id="f-ctd" type="date" value="'+today+'"></div>'+
     '<div class="fg"><label>Date fin</label><input class="fi" id="f-ctf" type="date" value="'+nys+'"></div></div>'+
     '<div class="fg"><label>Notes</label><textarea class="fta" id="f-ctnotes" placeholder="Détails du contrat..."></textarea></div>';
