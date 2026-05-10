@@ -108,6 +108,7 @@ body{background:var(--bg);color:var(--tx);font-family:'DM Sans',sans-serif;min-h
 /* MODAL */
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
 .modal-bg.on{opacity:1;pointer-events:all;}
+.btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
 .modal{background:var(--surf);border:1px solid var(--bord);box-shadow:0 8px 40px rgba(0,0,0,.15);border-radius:14px;width:520px;max-width:96vw;max-height:92vh;overflow-y:auto;transform:translateY(14px);transition:transform .2s;}
 .modal-bg.on .modal{transform:translateY(0);}
 .mh{padding:16px 20px 14px;border-bottom:1px solid var(--bord);display:flex;align-items:center;gap:10px;}
@@ -2244,6 +2245,16 @@ document.addEventListener('click', function(e){
   else if(fn==='pinClick') pinClick(e, parseInt(pid), parseInt(passId));
   else if(fn==='setStatut') setStatut(parseInt(pid), val, parseInt(passId));
 });
+
+// Fix boutons iOS Chrome — touchend sur modal-foot
+document.addEventListener('touchend', function(e){
+  var btn = e.target.closest('button[onclick]');
+  if(!btn) return;
+  var fn = btn.getAttribute('onclick');
+  if(!fn) return;
+  e.preventDefault();
+  try{ eval(fn); }catch(err){}
+}, {passive:false});
 
 async function init(){
   try{
