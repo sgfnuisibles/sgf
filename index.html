@@ -665,7 +665,7 @@ function openPassagesDrw(contratId){
       var ok=res.filter(function(r){return r.statut==='ok';}).length;
       var actif=res.filter(function(r){return r.statut==='actif';}).length;
       var total=gContratPostes(contratId).length;
-      h+='<div class="pass-card" data-fn="openTerrain" data-passid="'+pa.id+'">';
+      h+='<div class="pass-card" onclick="closeDrw();openTerrain('+pa.id+')">';
       h+='<div style="display:flex;align-items:center;gap:10px"><div style="flex:1"><div style="font-family:Bebas Neue,sans-serif;font-size:18px;letter-spacing:1px;color:var(--acc)">'+fdate(pa.date_passage)+'</div>';
       h+='<div style="font-size:11px;color:var(--tx3)">'+badge(pa.statut==='termine'?'actifcontrat':'encours')+'</div></div>';
       h+='<div style="display:flex;gap:6px"><button class="btn btn-g btn-xs" onclick="event.stopPropagation();exportPDF('+pa.id+')">📄 PDF</button><button class="btn btn-g btn-xs" onclick="event.stopPropagation();emailPassage('+pa.id+')">📧</button></div></div>';
