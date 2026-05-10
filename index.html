@@ -2013,7 +2013,7 @@ function modalEcheance(){
     '<button class="btn btn-r" id="btn-save-ech">Enregistrer</button>';
   document.getElementById('btn-annuler-ech').addEventListener('click', function(){closeModal();});
   document.getElementById('btn-save-ech').addEventListener('click', function(){saveEcheance();});
-  document.getElementById('btn-save-ech').addEventListener('touchend', function(e){e.preventDefault();saveEcheance();});
+
   document.getElementById('modal-bg').classList.add('on');
 }
 
@@ -2055,7 +2055,7 @@ function modalClient(cid){
     '<button class="btn btn-r" id="btn-enregistrer-client">Enregistrer</button>';
   document.getElementById('btn-annuler').addEventListener('click', function(){closeModal();});
   document.getElementById('btn-enregistrer-client').addEventListener('click', function(){saveClient(cid||null);});
-  document.getElementById('btn-enregistrer-client').addEventListener('touchend', function(e){e.preventDefault();saveClient(cid||null);});
+
   document.getElementById('modal-bg').classList.add('on');
 }
 
@@ -2100,7 +2100,7 @@ function modalContact(cid){
     '<button class="btn btn-r" id="btn-save-ct">Enregistrer</button>';
   document.getElementById('btn-annuler-ct').addEventListener('click', function(){closeModal();});
   document.getElementById('btn-save-ct').addEventListener('click', function(){saveContact(cid);});
-  document.getElementById('btn-save-ct').addEventListener('touchend', function(e){e.preventDefault();saveContact(cid);});
+
   document.getElementById('modal-bg').classList.add('on');
 }
 
@@ -2141,7 +2141,7 @@ function modalContrat(cid){
     '<button class="btn btn-r" id="btn-save-ctn">Enregistrer</button>';
   document.getElementById('btn-annuler-ctn').addEventListener('click', function(){closeModal();});
   document.getElementById('btn-save-ctn').addEventListener('click', function(){saveContrat(cid);});
-  document.getElementById('btn-save-ctn').addEventListener('touchend', function(e){e.preventDefault();saveContrat(cid);});
+
   document.getElementById('modal-bg').classList.add('on');
 }
 
@@ -2257,14 +2257,6 @@ document.addEventListener('click', function(e){
   else if(fn==='setStatut') setStatut(parseInt(pid), val, parseInt(passId));
 });
 
-// Tap sur fond modal = ferme clavier seulement, pas le modal
-document.getElementById('modal-bg').addEventListener('touchend', function(e){
-  if(e.target === this){
-    e.preventDefault();
-    document.activeElement && document.activeElement.blur();
-  }
-});
-
 // Fix universel iOS — active onclick sur tous les éléments
 document.addEventListener('touchstart', function(){}, {passive:true});
 
@@ -2273,7 +2265,6 @@ document.addEventListener('touchstart', function(){}, {passive:true});
   var el=document.getElementById('mn-'+v);
   if(!el)return;
   el.addEventListener('click',function(){go(v);});
-  el.addEventListener('touchend',function(e){e.preventDefault();go(v);});
 });
 
 async function init(){
