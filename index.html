@@ -455,7 +455,11 @@ async function loadAll(){
 }
 
 // ═══ NAVIGATION ═══
+var goLock=false;
 function go(view){
+  if(goLock)return;
+  goLock=true;
+  setTimeout(function(){goLock=false;},400);
   curView=view;
   // Reset terrain state when leaving terrain
   if(view!=='terrain'){curPassageId=null;curPlanId=null;curContratId=null;}
