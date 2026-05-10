@@ -1300,8 +1300,23 @@ function openPosteDetail(pid,passageId){
     h+='<div style="font-size:11px;font-weight:700;color:var(--tx3);letter-spacing:1px;margin-bottom:4px">NOTE</div>';
     h+='<div style="font-size:13px;color:var(--tx2)">'+note+'</div>';
   }
+  h+='<div style="margin-top:20px;border-top:1px solid var(--bord);padding-top:14px">';
+  h+='<button class="btn btn-sm" style="background:rgba(230,48,48,.1);color:var(--acc);border:1px solid rgba(230,48,48,.2);width:100%;justify-content:center" onclick="deletePoste('+pid+','+passageId+')">🗑️ Supprimer ce poste</button>';
+  h+='</div>';
   h+='</div>';
   openDrw(ptype.icon+' '+p.label, h);
+}
+
+function deletePoste(pid,passageId){
+  if(!confirm('Supprimer ce poste définitivement ?'))return;
+  syncOn();
+  db.from('resultats_postes').delete().eq('poste_id',pid).then(function(){
+    db.from('postes').delete().eq('id',pid).then(function(){
+      postes=postes.filter(function(p){return p.id!==pid;});
+      resultats=resultats.filter(function(r){return r.poste_id!==pid;});
+      syncOff();toast('Poste supprimé');closeDrw();openTerrain(passageId);
+    });
+  });
 }
 
 function uploadPostePhoto(e,pid,passageId){
