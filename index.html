@@ -1781,7 +1781,7 @@ function exportPDF(passageId){
       ctx.fillStyle='#ffffff';
       ctx.font='bold '+Math.round(rad*0.75)+'px Arial';
       ctx.textAlign='center';ctx.textBaseline='middle';
-      var lbl=p.label.length>5?p.label.substring(0,5):p.label;
+      var lbl=p.label.replace(/[^0-9]/g,'')||p.label.substring(0,2);
       ctx.fillText(lbl,px,py);
     });
 
