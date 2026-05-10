@@ -2051,8 +2051,8 @@ function modalClient(cid){
     '<button class="btn btn-g" id="btn-annuler">Annuler</button>'+
     '<button class="btn btn-r" id="btn-enregistrer-client">Enregistrer</button>';
   document.getElementById('btn-annuler').addEventListener('click', function(){closeModal();});
-  document.getElementById('btn-enregistrer-client').addEventListener('click', function(){saveClient(cid||null);});
-  document.getElementById('btn-enregistrer-client').addEventListener('touchend', function(e){e.preventDefault();saveClient(cid||null);});
+  document.getElementById('btn-enregistrer-client').addEventListener('click', function(){alert('click reçu');saveClient(cid||null);});
+  document.getElementById('btn-enregistrer-client').addEventListener('touchend', function(e){e.preventDefault();alert('touch reçu');saveClient(cid||null);});
   document.getElementById('modal-bg').classList.add('on');
 }
 
