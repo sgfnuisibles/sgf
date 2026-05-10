@@ -1734,11 +1734,16 @@ function exportPDF(passageId){
     var ctx=cv.getContext('2d');
     // White bg
     ctx.fillStyle='#f8f8f8';ctx.fillRect(0,0,cv.width,cv.height);
-    // Draw plan
+    // Draw plan avec attente chargement
     try{
       var src=plan.image_data;
-      var tmpImg=new Image();tmpImg.src=src;
-      if(tmpImg.complete&&tmpImg.naturalWidth>0){ctx.drawImage(tmpImg,0,0,cv.width,cv.height);}
+      await new Promise(function(resolve){
+        var tmpImg=new Image();
+        tmpImg.onload=function(){ctx.drawImage(tmpImg,0,0,cv.width,cv.height);resolve();}
+        tmpImg.onerror=function(){resolve();}
+        tmpImg.src=src;
+        if(tmpImg.complete&&tmpImg.naturalWidth>0){ctx.drawImage(tmpImg,0,0,cv.width,cv.height);resolve();}
+      });
     }catch(e){}
     // Heatmap
     planPostes.forEach(function(p){
@@ -1781,7 +1786,7 @@ function exportPDF(passageId){
       ctx.fillStyle='#ffffff';
       ctx.font='bold '+Math.round(rad*0.75)+'px Arial';
       ctx.textAlign='center';ctx.textBaseline='middle';
-      var lbl=p.label.replace(/[^0-9]/g,'')||p.label.substring(0,2);
+      var lbl=ptype.label.substring(0,2).toUpperCase();
       ctx.fillText(lbl,px,py);
     });
 
