@@ -1226,13 +1226,13 @@ function showListe(passageId){
         var bgmap={ok:'rgba(46,168,74,.06)',actif:'rgba(230,48,48,.06)',remplace:'rgba(249,115,22,.06)',absent:'rgba(74,82,74,.06)'};
         var bmap={ok:'var(--acc2)',actif:'var(--acc)',remplace:'var(--ora)',absent:'var(--tx3)'};
         var bg=s?bgmap[s]:'';var b=s?bmap[s]:'var(--bord)';
-        h+='<div style="background:var(--surf);border:2px solid '+b+';border-radius:12px;padding:11px;'+bg+'">';
+        h+='<div style="background:var(--surf);border:2px solid '+b+';border-radius:12px;padding:11px;'+bg+';cursor:pointer" onclick="openPosteDetail('+p.id+','+passageId+')">';
         if(p.photo_url)h+='<img src="'+p.photo_url+'" style="width:100%;height:48px;object-fit:cover;border-radius:6px;margin-bottom:6px">';
         h+='<div style="font-size:18px;margin-bottom:3px">'+ ptype.icon+'</div>';
         h+='<div style="font-size:12px;font-weight:600;margin-bottom:5px">'+p.label+'</div>';
         if(prod)h+='<div style="font-size:10px;color:var(--tx3);margin-bottom:3px">'+ ({placebo:'Placebo',toxique:'Toxique',capture:'Capture',aucun:'Aucun'}[prod]||prod)+(conso?' '+conso+'%':'')+'</div>';
         if(!isRO){
-          h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-bottom:4px">';
+          h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-bottom:4px" onclick="event.stopPropagation()">';
           [{s:'ok',l:'✅'},{s:'actif',l:'⚠️'},{s:'remplace',l:'🔄'},{s:'absent',l:'❌'}].forEach(function(bt){
             h+='<button style="padding:3px 4px;border-radius:5px;border:1px solid '+(s===bt.s?b:'var(--bord)')+';background:'+(s===bt.s?bg:'var(--surf2)')+';color:var(--tx);font-size:12px;cursor:pointer" onclick="setStatut('+p.id+',\''+bt.s+'\','+passageId+')">'+ bt.l+'</button>';
           });
@@ -1250,6 +1250,67 @@ function showListe(passageId){
 
   document.getElementById('page').innerHTML=h;
   document.getElementById('topbar-act').innerHTML='<button class="btn btn-g btn-sm" onclick="openTerrain('+passageId+')">← Plan</button>';
+}
+
+function openPosteDetail(pid,passageId){
+  var p=postes.find(function(x){return x.id===pid;});if(!p)return;
+  var pa=passages.find(function(x){return x.id===passageId;});if(!pa)return;
+  var isRO=pa.statut==='termine';
+  var ptype=pt(p.type_id);
+  var pr=gPosteRes(passageId,pid);
+  var s=pr?pr.statut:'';
+  var prod=pr?pr.produit:'';
+  var conso=pr?pr.conso:'';
+  var note=pr?pr.note:'';
+  var statuts={ok:'✅ Sain',consomme:'⚠️ Consommé',realimente:'🔄 Ré-alimenté',absent:'❌ Absent',controle:'✔️ Contrôlé',manquant:'🚫 Manquant'};
+  var h='<div style="padding-bottom:20px">';
+  h+='<div style="font-size:32px;margin-bottom:6px">'+ptype.icon+'</div>';
+  h+='<div style="font-size:18px;font-weight:700;margin-bottom:2px">'+p.label+'</div>';
+  h+='<div style="font-size:12px;color:var(--tx3);margin-bottom:14px">'+ptype.label+(p.zone?' — '+p.zone:'')+'</div>';
+  // Photo
+  if(p.photo_url){
+    h+='<img src="'+p.photo_url+'" style="width:100%;max-height:200px;object-fit:cover;border-radius:10px;margin-bottom:12px">';
+  }
+  if(!isRO){
+    h+='<label style="display:flex;align-items:center;gap:8px;background:var(--surf2);border:1px solid var(--bord);border-radius:10px;padding:10px 14px;cursor:pointer;margin-bottom:14px;font-size:13px;font-weight:600">📷 '+(p.photo_url?'Changer la photo':'Ajouter une photo')+'<input type="file" accept="image/*" capture="environment" style="display:none" onchange="uploadPostePhoto(event,'+pid+','+passageId+')"></label>';
+  }
+  // Statut
+  h+='<div style="font-size:11px;font-weight:700;color:var(--tx3);letter-spacing:1px;margin-bottom:6px">STATUT</div>';
+  h+='<div style="font-size:14px;font-weight:600;margin-bottom:14px">'+(s?statuts[s]||s:'Non vérifié')+'</div>';
+  // Produit/action
+  if(prod){
+    h+='<div style="font-size:11px;font-weight:700;color:var(--tx3);letter-spacing:1px;margin-bottom:4px">PRODUIT / ACTION</div>';
+    h+='<div style="font-size:13px;margin-bottom:14px">'+({placebo:'Placebo',toxique:'Toxique',capture:'Capture',aucun:'Aucun'}[prod]||prod)+(conso?' — '+conso+'%':'')+'</div>';
+  }
+  // Note
+  if(note){
+    h+='<div style="font-size:11px;font-weight:700;color:var(--tx3);letter-spacing:1px;margin-bottom:4px">NOTE</div>';
+    h+='<div style="font-size:13px;color:var(--tx2)">'+note+'</div>';
+  }
+  h+='</div>';
+  openDrw(ptype.icon+' '+p.label, h);
+}
+
+function uploadPostePhoto(e,pid,passageId){
+  var file=e.target.files[0];if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    var base64=ev.target.result;
+    var ext=file.name.split('.').pop();
+    var path='postes/'+pid+'.'+ext;
+    syncOn();
+    db.storage.from('plans').upload(path,file,{upsert:true,contentType:file.type}).then(function(r){
+      if(r.error){syncOff();toast('⚠️ Erreur upload',true);return;}
+      var url=db.storage.from('plans').getPublicUrl(path).data.publicUrl;
+      db.from('postes').update({photo_url:url}).eq('id',pid).then(function(){
+        var p=postes.find(function(x){return x.id===pid;});
+        if(p)p.photo_url=url;
+        syncOff();toast('✓ Photo ajoutée');
+        openPosteDetail(pid,passageId);
+      });
+    });
+  };
+  reader.readAsDataURL(file);
 }
 
 function addPosteManuel(contratId,passageId){
