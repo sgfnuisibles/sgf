@@ -743,6 +743,7 @@ function openTerrain(passageId){
   h+='<div class="pst"><div class="pst-v" style="color:var(--acc2);font-size:18px">'+ok+'</div><div class="pst-l">OK</div></div>';
   h+='<div class="pst"><div class="pst-v" style="color:'+(actif>0?'var(--acc)':'var(--tx3)')+';font-size:18px">'+actif+'</div><div class="pst-l">Actif</div></div>';
   if(!isRO&&checked===total&&total>0)h+='<button class="btn btn-grn btn-sm" onclick="terminer('+passageId+')" style="white-space:nowrap">✓ Terminer</button>';
+  if(!isRO&&(checked<total||total===0))h+='<div style="font-size:10px;color:var(--tx3);text-align:center;white-space:nowrap">'+checked+'/'+total+' vérifiés<br><span style="color:var(--acc)">à compléter</span></div>';
   if(isRO&&!pa.signature)h+='<button class="btn btn-r btn-sm" onclick="openSignature('+passageId+')" style="white-space:nowrap">✍️ Signature</button>';
   if(isRO&&pa.signature)h+='<div style="display:flex;flex-direction:column;align-items:center;gap:2px"><img src="'+pa.signature+'" style="height:32px;border:1px solid var(--bord);border-radius:6px;background:#fff">'+(pa.signataire?'<span style="font-size:9px;color:var(--tx3)">'+pa.signataire+'</span>':'')+'</div>';
   h+='</div></div>';
