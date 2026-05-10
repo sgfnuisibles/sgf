@@ -682,15 +682,25 @@ function openPassagesDrw(contratId){
 }
 
 function createPassage(cid,ctid){
-  closeDrw();
-  syncOn();
   var today=new Date().toISOString().split('T')[0];
-  db.from('passages').insert({client_id:cid,contrat_id:ctid,date_passage:today,statut:'en_cours',notes:''}).select().single().then(function(r){
-    syncOff();
-    if(r.error){toast('⚠️ Erreur création',true);return;}
-    passages.unshift(r.data);
-    openTerrain(r.data.id);
+  document.getElementById('modal-title').textContent='DATE DE LA VISITE';
+  document.getElementById('modal-body').innerHTML=
+    '<div class="fg"><label>Date du passage</label><input class="fi" id="f-passage-date" type="date" value="'+today+'"></div>';
+  document.getElementById('modal-foot').innerHTML=
+    '<button class="btn btn-g" id="btn-annuler-passage">Annuler</button>'+
+    '<button class="btn btn-r" id="btn-confirmer-passage">Démarrer</button>';
+  document.getElementById('btn-annuler-passage').addEventListener('click',function(){closeModal();});
+  document.getElementById('btn-confirmer-passage').addEventListener('click',function(){
+    var date=document.getElementById('f-passage-date').value||today;
+    closeModal();closeDrw();syncOn();
+    db.from('passages').insert({client_id:cid,contrat_id:ctid,date_passage:date,statut:'en_cours',notes:''}).select().single().then(function(r){
+      syncOff();
+      if(r.error){toast('⚠️ Erreur création',true);return;}
+      passages.unshift(r.data);
+      openTerrain(r.data.id);
+    });
   });
+  document.getElementById('modal-bg').classList.add('on');
 }
 
 // ═══════════════════════════════════════════
