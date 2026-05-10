@@ -2009,8 +2009,11 @@ function modalEcheance(){
     '</div>'+
     '<div class="fg"><label>Notes</label><textarea class="fta" id="f-ech-notes" placeholder="Remarques..."></textarea></div>';
   document.getElementById('modal-foot').innerHTML=
-    '<button class="btn btn-g" onclick="closeModal()">Annuler</button>'+
-    '<button class="btn btn-r" onclick="saveEcheance()">Enregistrer</button>';
+    '<button class="btn btn-g" id="btn-annuler-ech">Annuler</button>'+
+    '<button class="btn btn-r" id="btn-save-ech">Enregistrer</button>';
+  document.getElementById('btn-annuler-ech').addEventListener('click', function(){closeModal();});
+  document.getElementById('btn-save-ech').addEventListener('click', function(){saveEcheance();});
+  document.getElementById('btn-save-ech').addEventListener('touchend', function(e){e.preventDefault();saveEcheance();});
   document.getElementById('modal-bg').classList.add('on');
 }
 
@@ -2093,8 +2096,11 @@ function modalContact(cid){
     '<div class="fg"><label>Email</label><input class="fi" id="f-cemail" type="email"></div></div>'+
     '<div class="fg"><label><input type="checkbox" id="f-cprinc" style="margin-right:6px">Contact principal</label></div>';
   document.getElementById('modal-foot').innerHTML=
-    '<button class="btn btn-g" onclick="closeModal()">Annuler</button>'+
-    '<button class="btn btn-r" onclick="saveContact('+cid+')">Enregistrer</button>';
+    '<button class="btn btn-g" id="btn-annuler-ct">Annuler</button>'+
+    '<button class="btn btn-r" id="btn-save-ct">Enregistrer</button>';
+  document.getElementById('btn-annuler-ct').addEventListener('click', function(){closeModal();});
+  document.getElementById('btn-save-ct').addEventListener('click', function(){saveContact(cid);});
+  document.getElementById('btn-save-ct').addEventListener('touchend', function(e){e.preventDefault();saveContact(cid);});
   document.getElementById('modal-bg').classList.add('on');
 }
 
@@ -2131,8 +2137,11 @@ function modalContrat(cid){
     '<div class="fg"><label>Date fin</label><input class="fi" id="f-ctf" type="date" value="'+nys+'"></div></div>'+
     '<div class="fg"><label>Notes</label><textarea class="fta" id="f-ctnotes" placeholder="Détails du contrat..."></textarea></div>';
   document.getElementById('modal-foot').innerHTML=
-    '<button class="btn btn-g" onclick="closeModal()">Annuler</button>'+
-    '<button class="btn btn-r" onclick="saveContrat('+cid+')">Enregistrer</button>';
+    '<button class="btn btn-g" id="btn-annuler-ctn">Annuler</button>'+
+    '<button class="btn btn-r" id="btn-save-ctn">Enregistrer</button>';
+  document.getElementById('btn-annuler-ctn').addEventListener('click', function(){closeModal();});
+  document.getElementById('btn-save-ctn').addEventListener('click', function(){saveContrat(cid);});
+  document.getElementById('btn-save-ctn').addEventListener('touchend', function(e){e.preventDefault();saveContrat(cid);});
   document.getElementById('modal-bg').classList.add('on');
 }
 
