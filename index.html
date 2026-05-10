@@ -412,18 +412,7 @@ function pt(id){return POSTE_TYPES.find(function(t){return t.id===id;})||POSTE_T
 function gcl(id){return clients.find(function(c){return c.id===id;})||{nom:'—',adresse:'',tel:'',email:'',notes:''};}
 function gct(id){return contrats.find(function(c){return c.id===id;});}
 function gContratPlans(cid){return plans.filter(function(p){return p.contrat_id===cid;});}
-function gContratPostes(cid,datePassage){
-  return postes.filter(function(p){
-    if(p.contrat_id!==cid)return false;
-    if(datePassage&&p.created_at){
-      var dPoste=new Date(p.created_at);
-      var dPass=new Date(datePassage);
-      dPass.setHours(23,59,59,999);
-      return dPoste<=dPass;
-    }
-    return true;
-  });
-}
+function gContratPostes(cid,datePassage){return postes.filter(function(p){return p.contrat_id===cid;});}
 function gPlanPostes(pid){return postes.filter(function(p){return p.plan_id===pid;});}
 function gPassRes(passId){return resultats.filter(function(r){return r.passage_id===passId;});}
 function gPosteRes(passId,posteId){return resultats.find(function(r){return r.passage_id===passId&&r.poste_id==posteId;});}
