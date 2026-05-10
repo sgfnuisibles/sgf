@@ -27,7 +27,7 @@
   --acc:#e63030;--acc2:#2ea84a;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--tx);font-family:'DM Sans',sans-serif;min-height:100dvh;}
+body{background:var(--bg);color:var(--tx);font-family:'DM Sans',sans-serif;min-height:100dvh;cursor:pointer;}
 
 /* LOADING */
 #load{position:fixed;inset:0;background:#ffffff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;z-index:9999;transition:opacity .4s;}
@@ -2264,6 +2264,9 @@ document.getElementById('modal-bg').addEventListener('touchend', function(e){
     document.activeElement && document.activeElement.blur();
   }
 });
+
+// Fix universel iOS — active onclick sur tous les éléments
+document.addEventListener('touchstart', function(){}, {passive:true});
 
 // Navigation mobile iOS
 ['clients','terrain','rapports','facturation'].forEach(function(v){
