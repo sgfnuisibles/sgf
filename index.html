@@ -269,10 +269,10 @@ body{background:var(--bg);color:var(--tx);font-family:'DM Sans',sans-serif;min-h
 <div id="sync"></div>
 
 <nav id="mobnav">
-  <div class="mn-item on" id="mn-clients" onclick="go('clients')"><span class="mn-icon">🏢</span><span class="mn-lbl">Clients</span></div>
-  <div class="mn-item" id="mn-terrain" onclick="go('terrain')"><span class="mn-icon">✅</span><span class="mn-lbl">Terrain</span></div>
-  <div class="mn-item" id="mn-rapports" onclick="go('rapports')"><span class="mn-icon">📋</span><span class="mn-lbl">Rapports</span></div>
-  <div class="mn-item" id="mn-facturation" onclick="go('facturation')"><span class="mn-icon">💶</span><span class="mn-lbl">Factures</span></div>
+  <div class="mn-item on" id="mn-clients"><span class="mn-icon">🏢</span><span class="mn-lbl">Clients</span></div>
+  <div class="mn-item" id="mn-terrain"><span class="mn-icon">✅</span><span class="mn-lbl">Terrain</span></div>
+  <div class="mn-item" id="mn-rapports"><span class="mn-icon">📋</span><span class="mn-lbl">Rapports</span></div>
+  <div class="mn-item" id="mn-facturation"><span class="mn-icon">💶</span><span class="mn-lbl">Factures</span></div>
 </nav>
 
 <!-- DRAWER -->
@@ -2263,6 +2263,14 @@ document.getElementById('modal-bg').addEventListener('touchend', function(e){
     e.preventDefault();
     document.activeElement && document.activeElement.blur();
   }
+});
+
+// Navigation mobile iOS
+['clients','terrain','rapports','facturation'].forEach(function(v){
+  var el=document.getElementById('mn-'+v);
+  if(!el)return;
+  el.addEventListener('click',function(){go(v);});
+  el.addEventListener('touchend',function(e){e.preventDefault();go(v);});
 });
 
 async function init(){
