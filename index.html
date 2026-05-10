@@ -440,26 +440,24 @@ function toast(msg,warn){
 
 // ═══ LOAD DATA ═══
 async function loadAll(){
-  setLoad('Connexion…');
-  var [r1,r2,r3,r4,r5,r6,r7,r8]=await Promise.all([
-    db.from('clients').select('*').order('nom'),
-    db.from('contrats').select('*').order('client_id'),
-    db.from('contacts').select('*').order('client_id'),
-    db.from('postes').select('*').order('id'),
-    db.from('plans').select('*').order('ordre'),
-    db.from('passages').select('*').order('date_passage',{ascending:false}),
-    db.from('resultats_postes').select('*'),
-    db.from('echeancier').select('*').order('date_echeance')
-  ]);
-  if(r1.error)throw new Error(r1.error.message);
-  clients=r1.data||[];
-  contrats=r2.data||[];
-  contacts=r3.data||[];
-  postes=r4.data||[];
-  plans=r5.data||[];
-  passages=r6.data||[];
-  resultats=r7.data||[];
-  echeancier=r8.data||[];
+  setLoad('Chargement…');
+  var r=await db.from('clients').select('*').order('nom');
+  if(r.error)throw new Error(r.error.message);
+  clients=r.data||[];
+  r=await db.from('contrats').select('*').order('client_id');
+  contrats=r.data||[];
+  r=await db.from('contacts').select('*').order('client_id');
+  contacts=r.data||[];
+  r=await db.from('postes').select('*').order('id');
+  postes=r.data||[];
+  r=await db.from('plans').select('*').order('ordre');
+  plans=r.data||[];
+  r=await db.from('passages').select('*').order('date_passage',{ascending:false});
+  passages=r.data||[];
+  r=await db.from('resultats_postes').select('*');
+  resultats=r.data||[];
+  r=await db.from('echeancier').select('*').order('date_echeance');
+  echeancier=r.data||[];
 }
 
 // ═══ NAVIGATION ═══
