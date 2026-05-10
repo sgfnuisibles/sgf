@@ -743,6 +743,7 @@ function openTerrain(passageId){
   h+='<div class="pst"><div class="pst-v" style="color:var(--acc2);font-size:18px">'+ok+'</div><div class="pst-l">OK</div></div>';
   h+='<div class="pst"><div class="pst-v" style="color:'+(actif>0?'var(--acc)':'var(--tx3)')+';font-size:18px">'+actif+'</div><div class="pst-l">Actif</div></div>';
   if(!isRO&&checked===total&&total>0)h+='<button class="btn btn-grn btn-sm" onclick="terminer('+passageId+')" style="white-space:nowrap">✓ Terminer</button>';
+  if(!isRO)h+='<button class="btn btn-sm" style="background:rgba(230,48,48,.1);color:var(--acc);border:1px solid rgba(230,48,48,.2);white-space:nowrap" onclick="deletePassage('+passageId+')">🗑️</button>';
   if(isRO&&!pa.signature)h+='<button class="btn btn-r btn-sm" onclick="openSignature('+passageId+')" style="white-space:nowrap">✍️ Signature</button>';
   if(isRO&&pa.signature)h+='<div style="display:flex;flex-direction:column;align-items:center;gap:2px"><img src="'+pa.signature+'" style="height:32px;border:1px solid var(--bord);border-radius:6px;background:#fff">'+(pa.signataire?'<span style="font-size:9px;color:var(--tx3)">'+pa.signataire+'</span>':'')+'</div>';
   h+='</div></div>';
@@ -1097,6 +1098,18 @@ function setConso(pid,conso,passageId){
 function setNote(pid,note,passageId){
   var ex=gPosteRes(passageId,pid);
   dbUpdateRes(ex,{note:note},passageId,pid,null);
+}
+
+function deletePassage(passageId){
+  if(!confirm('Supprimer ce passage et tous ses résultats ?'))return;
+  syncOn();
+  db.from('resultats_postes').delete().eq('passage_id',passageId).then(function(){
+    db.from('passages').delete().eq('id',passageId).then(function(){
+      passages=passages.filter(function(p){return p.id!==passageId;});
+      resultats=resultats.filter(function(r){return r.passage_id!==passageId;});
+      syncOff();toast('Passage supprimé');go('clients');
+    });
+  });
 }
 
 async function terminer(passageId){
