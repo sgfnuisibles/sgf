@@ -1595,7 +1595,7 @@ function exportPDF(passageId){
   doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(120,120,120);
   doc.text('Contrat : '+ctr.nom+' ('+ctr.type+')',M,53);
   doc.text('Intervenant : Christophe Pons',W-M,48,{align:'right'});
-  if(nextPassage)doc.text('Prochain passage prévu : '+nextPassage,W-M,53,{align:'right'});
+  //if(nextPassage)doc.text('Prochain passage prévu : '+nextPassage,W-M,53,{align:'right'});
   doc.setFillColor(230,48,48);doc.rect(0,55,W,0.5,'F');
 
   var y=63;
@@ -1929,7 +1929,7 @@ function exportPDF(passageId){
     doc.text('Client : '+c.nom,M,sy);sy+=5;
     if(pa.signataire)doc.text('Signataire : '+pa.signataire,M,sy);sy+=5;
     doc.text('Intervenant : Christophe Pons — SGF Nuisibles',M,sy);sy+=5;
-    doc.text('Prochain passage prévu'+(nextPassage?' le '+nextPassage:' : à définir'),M,sy);sy+=10;
+    //doc.text('Prochain passage prévu'+(nextPassage?' le '+nextPassage:' : à définir'),M,sy);sy+=10;
     doc.text('Bon pour accord',M,sy);sy+=7;
     doc.setDrawColor(200,200,200);doc.setLineWidth(0.3);doc.roundedRect(M,sy,W-M*2,45,2,2,'S');
     try{doc.addImage(pa.signature,'PNG',M+2,sy+2,W-M*2-4,41);}catch(e){}
