@@ -1836,7 +1836,7 @@ function emailPassage(passageId){
   var pa=passages.find(function(p){return p.id===passageId;});if(!pa)return;
   var c=gcl(pa.client_id);var ctr=gct(pa.contrat_id)||{nom:''};
   var cContacts=contacts.filter(function(x){return x.client_id===pa.client_id;});
-  var to=(cContacts.find(function(x){return x.principal;})||cContacts[0]||{email:''}).email||'';
+  var to=(cContacts.find(function(x){return x.principal;})||cContacts[0]||{email:''}).email||c.email||'';
   var res=gPassRes(passageId);
   var ok=res.filter(function(r){return r.statut==='ok';}).length;
   var actif=res.filter(function(r){return r.statut==='actif';}).length;
