@@ -269,10 +269,10 @@ body{background:var(--bg);color:var(--tx);font-family:'DM Sans',sans-serif;min-h
 <div id="sync"></div>
 
 <nav id="mobnav">
-  <button class="mn-item on" id="mn-clients"><span class="mn-icon">🏢</span><span class="mn-lbl">Clients</span></button>
-  <button class="mn-item" id="mn-terrain"><span class="mn-icon">✅</span><span class="mn-lbl">Terrain</span></button>
-  <button class="mn-item" id="mn-rapports"><span class="mn-icon">📋</span><span class="mn-lbl">Rapports</span></button>
-  <button class="mn-item" id="mn-facturation"><span class="mn-icon">💶</span><span class="mn-lbl">Factures</span></button>
+  <button class="mn-item on" id="mn-clients" onclick="go('clients')"><span class="mn-icon">🏢</span><span class="mn-lbl">Clients</span></button>
+  <button class="mn-item" id="mn-terrain" onclick="go('terrain')"><span class="mn-icon">✅</span><span class="mn-lbl">Terrain</span></button>
+  <button class="mn-item" id="mn-rapports" onclick="go('rapports')"><span class="mn-icon">📋</span><span class="mn-lbl">Rapports</span></button>
+  <button class="mn-item" id="mn-facturation" onclick="go('facturation')"><span class="mn-icon">💶</span><span class="mn-lbl">Factures</span></button>
 </nav>
 
 <!-- DRAWER -->
@@ -455,11 +455,7 @@ async function loadAll(){
 }
 
 // ═══ NAVIGATION ═══
-var goLock=false;
 function go(view){
-  if(goLock)return;
-  goLock=true;
-  setTimeout(function(){goLock=false;},400);
   curView=view;
   // Reset terrain state when leaving terrain
   if(view!=='terrain'){curPassageId=null;curPlanId=null;curContratId=null;}
@@ -2267,21 +2263,6 @@ document.addEventListener('click', function(e){
   else if(fn==='setStatut') setStatut(parseInt(pid), val, parseInt(passId));
 });
 
-// Fix barre navigation après fermeture clavier iOS
-window.addEventListener('resize', function(){
-  var nav = document.getElementById('mobnav');
-  if(nav) nav.style.bottom = '0';
-});
-
-// Fix universel iOS — active onclick sur tous les éléments
-document.addEventListener('touchstart', function(){}, {passive:true});
-
-// Navigation mobile iOS
-['clients','terrain','rapports','facturation'].forEach(function(v){
-  var el=document.getElementById('mn-'+v);
-  if(!el)return;
-  el.addEventListener('click',function(){go(v);});
-});
 
 async function init(){
   try{
