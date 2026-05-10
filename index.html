@@ -2164,7 +2164,13 @@ function openDrw(title,html){
   document.getElementById('drw-bg').classList.add('on');
 }
 function closeDrw(){document.getElementById('drw-bg').classList.remove('on');}
-function closeModal(){document.getElementById('modal-bg').classList.remove('on');}
+function closeModal(){
+  document.getElementById('modal-bg').classList.remove('on');
+  var foot=document.getElementById('modal-foot');
+  var body=document.getElementById('modal-body');
+  foot.innerHTML='';
+  body.innerHTML='';
+}
 
 
 // ═══════════════════════════════════════════
