@@ -412,7 +412,15 @@ function pt(id){return POSTE_TYPES.find(function(t){return t.id===id;})||POSTE_T
 function gcl(id){return clients.find(function(c){return c.id===id;})||{nom:'—',adresse:'',tel:'',email:'',notes:''};}
 function gct(id){return contrats.find(function(c){return c.id===id;});}
 function gContratPlans(cid){return plans.filter(function(p){return p.contrat_id===cid;});}
-function gContratPostes(cid){return postes.filter(function(p){return p.contrat_id===cid;});}
+function gContratPostes(cid,datePassage){
+  return postes.filter(function(p){
+    if(p.contrat_id!==cid)return false;
+    if(datePassage&&p.created_at){
+      return new Date(p.created_at)<=new Date(datePassage);
+    }
+    return true;
+  });
+}
 function gPlanPostes(pid){return postes.filter(function(p){return p.plan_id===pid;});}
 function gPassRes(passId){return resultats.filter(function(r){return r.passage_id===passId;});}
 function gPosteRes(passId,posteId){return resultats.find(function(r){return r.passage_id===passId&&r.poste_id==posteId;});}
@@ -723,7 +731,7 @@ function openTerrain(passageId){
   document.getElementById('topbar-act').innerHTML='<button class="btn btn-g btn-sm" onclick="backToPassages()">← Retour</button>';
 
   // Session header
-  var allP=gContratPostes(pa.contrat_id);
+  var allP=gContratPostes(pa.contrat_id, pa.date_passage);
   var res=gPassRes(passageId);
   var total=allP.length,checked=res.length;
   var ok=res.filter(function(r){return r.statut==='ok';}).length;
@@ -946,7 +954,7 @@ function refreshPinAndHeader(passageId){
   // Update pin colors
   var pa=passages.find(function(p){return p.id===passageId;});
   var isRO=pa?pa.statut==='termine':false;
-  var allPostes=gContratPostes(pa?pa.contrat_id:0);
+  var allPostes=gContratPostes(pa?pa.contrat_id:0, pa?pa.date_passage:null);
   allPostes.forEach(function(p){
     var pinEl=document.getElementById('pin-'+p.id);
     if(!pinEl)return;
@@ -1213,7 +1221,7 @@ function saveSig(passageId){
 function showListe(passageId){
   var pa=passages.find(function(p){return p.id===passageId;});if(!pa)return;
   var isRO=pa.statut==='termine';
-  var allP=gContratPostes(pa.contrat_id);
+  var allP=gContratPostes(pa.contrat_id, pa.date_passage);
   var zones={};
   allP.forEach(function(p){var z=p.zone||'Général';if(!zones[z])zones[z]=[];zones[z].push(p);});
   var res=gPassRes(passageId);
@@ -1543,7 +1551,7 @@ function exportPDF(passageId){
   var pa=passages.find(function(p){return p.id===passageId;});if(!pa)return;
   var c=gcl(pa.client_id);
   var ctr=gct(pa.contrat_id)||{nom:'',type:'',date_debut:'',date_fin:''};
-  var allPostes=gContratPostes(pa.contrat_id);
+  var allPostes=gContratPostes(pa.contrat_id, pa.date_passage);
   var res=gPassRes(passageId);
   var ok=res.filter(function(r){return r.statut==='ok';}).length;
   var actif=res.filter(function(r){return r.statut==='actif';}).length;
