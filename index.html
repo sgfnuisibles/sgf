@@ -2048,12 +2048,16 @@ function modalClient(cid){
     '<div class="fg"><label>Adresse</label><input class="fi" id="f-adr" value="'+c.adresse+'" placeholder="12 Rue..."></div>'+
     '<div class="fg"><label>Notes</label><textarea class="fta" id="f-notes">'+c.notes+'</textarea></div>';
   document.getElementById('modal-foot').innerHTML=
-    '<button class="btn btn-g" onclick="closeModal()">Annuler</button>'+
-    '<button class="btn btn-r" onclick="saveClient('+(cid||'null')+')">Enregistrer</button>';
+    '<button class="btn btn-g" id="btn-annuler">Annuler</button>'+
+    '<button class="btn btn-r" id="btn-enregistrer-client">Enregistrer</button>';
+  document.getElementById('btn-annuler').addEventListener('click', function(){closeModal();});
+  document.getElementById('btn-enregistrer-client').addEventListener('click', function(){saveClient(cid||null);});
+  document.getElementById('btn-enregistrer-client').addEventListener('touchend', function(e){e.preventDefault();saveClient(cid||null);});
   document.getElementById('modal-bg').classList.add('on');
 }
 
 function saveClient(cid){
+  document.activeElement && document.activeElement.blur();
   var nom=document.getElementById('f-nom').value.trim();
   if(!nom){toast('⚠️ Nom obligatoire',true);return;}
   var data={nom:nom,type:document.getElementById('f-type').value,tel:document.getElementById('f-tel').value,email:document.getElementById('f-email').value,adresse:document.getElementById('f-adr').value,notes:document.getElementById('f-notes').value};
