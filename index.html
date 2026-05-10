@@ -2226,9 +2226,7 @@ function exportAllData(){
 document.addEventListener('click', function(e){
   var btn = e.target.closest('[data-fn]');
   if(!btn) return;
-  e.preventDefault();
   var fn = btn.getAttribute('data-fn');
-  console.log('CLICK data-fn:', fn, btn.outerHTML.substring(0,100));
   var cid = btn.getAttribute('data-cid');
   var ctid = btn.getAttribute('data-ctid');
   var eid = btn.getAttribute('data-eid');
@@ -2257,16 +2255,6 @@ document.getElementById('modal-bg').addEventListener('touchend', function(e){
     document.activeElement && document.activeElement.blur();
   }
 });
-
-// Fix boutons iOS Chrome — touchend sur modal-foot
-document.addEventListener('touchend', function(e){
-  var btn = e.target.closest('button[onclick]');
-  if(!btn) return;
-  var fn = btn.getAttribute('onclick');
-  if(!fn) return;
-  e.preventDefault();
-  try{ eval(fn); }catch(err){}
-}, {passive:false});
 
 async function init(){
   try{
