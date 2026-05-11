@@ -1808,7 +1808,7 @@ function exportPDF(passageId){
       ctx.fillStyle='#ffffff';
       ctx.font='bold '+Math.round(rad*0.75)+'px Arial';
       ctx.textAlign='center';ctx.textBaseline='middle';
-      var lbl=ptype.label.substring(0,2).toUpperCase();
+      var lbl=(pt(p.type_id)||{label:'?'}).label.substring(0,2).toUpperCase();
       ctx.fillText(lbl,px,py);
     });
 
