@@ -2635,9 +2635,11 @@ function importFretonCSV(input){
       var cols=rows[i];
       var num=iNum>=0?(cols[iNum]||'').trim():'';
       if(!num||isNaN(parseInt(num)))continue;
-      // Ignorer les interventions antérieures à 2026
+      // Ignorer si pas de date ou antérieur à 2026
       var dateStr=iDate>=0?(cols[iDate]||''):'';
-      if(dateStr&&!dateStr.includes('2026'))continue;
+      if(!dateStr)continue;
+      var yearMatch=dateStr.match(/(\d{4})/);
+      if(!yearMatch||parseInt(yearMatch[1])<2026)continue;
       var exists=signalements.find(function(s){return s.num_signalement===num;});
       if(exists)continue;
       toInsert.push({
