@@ -2437,10 +2437,8 @@ document.addEventListener('touchend',function(e){
 },{passive:true});
 
 
-// ═══════════════════════════════════════════
-// FRELONS ASIATIQUES — SUIVI SIGNALEMENTS
-// ═══════════════════════════════════════════
 var frelonFilter='';var frelonSearch='';var frelonVue='lignes';
+var autoSaveTimer=null;
 
 function renderFrelons(){
   var total=signalements.length;
@@ -2448,50 +2446,60 @@ function renderFrelons(){
   var envoyee=signalements.filter(function(s){return s.statut_facture==='envoyee';}).length;
   var nonDef=signalements.filter(function(s){return !s.statut_facture||s.statut_facture==='';}).length;
 
-  var h='';
   document.getElementById('topbar-act').innerHTML=
-    '<span id="autosave-indicator" style="font-size:12px;color:var(--grn);opacity:0;transition:opacity .3s;margin-right:8px">✓ Sauvegardé</span>'+
+    '<span id="autosave-ind" style="font-size:12px;color:var(--grn);opacity:0;transition:opacity .3s;margin-right:8px">✓ Sauvegardé</span>'+
     '<button class="btn btn-g btn-sm" id="btn-import-frelon" onclick="triggerImportFrelon()">📥 Import CSV</button>';
   setTimeout(function(){
+    var old=document.getElementById('frelons-csv-input');if(old)old.remove();
     var inp=document.createElement('input');
     inp.type='file';inp.accept='.csv';inp.id='frelons-csv-input';inp.style.display='none';
     document.body.appendChild(inp);
     inp.addEventListener('change',function(){importFretonCSV(this);});
   },50);
 
-  h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:18px">';
-  h+='<div style="background:#fff;border:1px solid var(--bord);border-radius:12px;padding:12px 14px"><div style="font-size:10px;color:var(--tx3);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Signalements</div><div style="font-family:Bebas Neue,sans-serif;font-size:28px;color:var(--tx)">'+total+'</div></div>';
-  h+='<div style="background:'+(aFaire>0?'#fffaf0':'#fff')+';border:1px solid '+(aFaire>0?'rgba(249,115,22,.3)':'var(--bord)')+';border-radius:12px;padding:12px 14px"><div style="font-size:10px;color:var(--tx3);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">À facturer</div><div style="font-family:Bebas Neue,sans-serif;font-size:28px;color:'+(aFaire>0?'var(--ora)':'var(--tx3)')+'">'+aFaire+'</div></div>';
-  h+='<div style="background:'+(envoyee>0?'#f0fdf5':'#fff')+';border:1px solid '+(envoyee>0?'rgba(46,168,74,.3)':'var(--bord)')+';border-radius:12px;padding:12px 14px"><div style="font-size:10px;color:var(--tx3);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Envoyées</div><div style="font-family:Bebas Neue,sans-serif;font-size:28px;color:'+(envoyee>0?'var(--grn)':'var(--tx3)')+'">'+envoyee+'</div></div>';
-  h+='<div style="background:#fff;border:1px solid var(--bord);border-radius:12px;padding:12px 14px"><div style="font-size:10px;color:var(--tx3);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Non défini</div><div style="font-family:Bebas Neue,sans-serif;font-size:28px;color:var(--tx3)">'+nonDef+'</div></div>';
+  var h='';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:14px">';
+  h+='<div style="background:#fff;border:1px solid var(--bord);border-radius:12px;padding:10px 12px"><div style="font-size:10px;color:var(--tx3);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px">Signalements</div><div style="font-family:Bebas Neue,sans-serif;font-size:26px;color:var(--tx)">'+total+'</div></div>';
+  h+='<div style="background:'+(aFaire>0?'#fffaf0':'#fff')+';border:1px solid '+(aFaire>0?'rgba(249,115,22,.3)':'var(--bord)')+';border-radius:12px;padding:10px 12px"><div style="font-size:10px;color:var(--tx3);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px">À facturer</div><div style="font-family:Bebas Neue,sans-serif;font-size:26px;color:'+(aFaire>0?'var(--ora)':'var(--tx3)')+'">'+aFaire+'</div></div>';
+  h+='<div style="background:'+(envoyee>0?'#f0fdf5':'#fff')+';border:1px solid '+(envoyee>0?'rgba(46,168,74,.3)':'var(--bord)')+';border-radius:12px;padding:10px 12px"><div style="font-size:10px;color:var(--tx3);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px">Envoyées</div><div style="font-family:Bebas Neue,sans-serif;font-size:26px;color:'+(envoyee>0?'var(--grn)':'var(--tx3)')+'">'+envoyee+'</div></div>';
+  h+='<div style="background:#fff;border:1px solid var(--bord);border-radius:12px;padding:10px 12px"><div style="font-size:10px;color:var(--tx3);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px">Non défini</div><div style="font-family:Bebas Neue,sans-serif;font-size:26px;color:var(--tx3)">'+nonDef+'</div></div>';
   h+='</div>';
 
-  h+='<div style="display:flex;gap:6px;margin-bottom:14px">';
+  h+='<div style="display:flex;gap:6px;margin-bottom:10px">';
   h+='<button class="btn btn-sm '+(frelonVue==="lignes"?"btn-r":"btn-g")+'" onclick="frelonVue=\'lignes\';renderFrelons()">Lignes</button>';
   h+='<button class="btn btn-sm '+(frelonVue==="factures"?"btn-r":"btn-g")+'" onclick="frelonVue=\'factures\';renderFrelons()">Par facture</button>';
   h+='</div>';
-  if(frelonVue==="factures"){renderFreloFactures(document.getElementById("page")||document.body);return;}
-  h+='<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">';
-  h+='<input class="fi" id="frelon-search" placeholder="🔍 N°, nom, ville…" value="'+frelonSearch+'" oninput="frelonSearch=this.value;renderFreloTable()" style="max-width:220px;flex:1">';
-  h+='<select class="fs" id="frelon-filter" onchange="frelonFilter=this.value;renderFreloTable()" style="max-width:180px">';
+
+  if(frelonVue==='factures'){
+    document.getElementById('page').innerHTML+=h;
+    renderFreloFactures();
+    return;
+  }
+
+  h+='<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">';
+  h+='<input class="fi" id="frelon-search" placeholder="🔍 N°, nom, ville…" value="'+frelonSearch+'" oninput="frelonSearch=this.value;renderFreloTable()" style="max-width:200px;flex:1">';
+  h+='<select class="fs" onchange="frelonFilter=this.value;renderFreloTable()" style="max-width:170px">';
   h+='<option value="" '+(frelonFilter===''?'selected':'')+'>Tous les statuts</option>';
   h+='<option value="a_faire" '+(frelonFilter==='a_faire'?'selected':'')+'>À faire</option>';
   h+='<option value="envoyee" '+(frelonFilter==='envoyee'?'selected':'')+'>Envoyée</option>';
   h+='<option value="non_concerne" '+(frelonFilter==='non_concerne'?'selected':'')+'>Non concerné</option>';
   h+='</select>';
-  h+='<button class="btn btn-g btn-sm" onclick="exportFrelonsCSV()">💾 Export suivi</button>';
+  h+='<button class="btn btn-g btn-sm" onclick="exportFrelonsCSV()">💾 Export</button>';
   h+='</div>';
 
-  h+='<div class="tbl-wrap"><table class="tbl" style="table-layout:fixed;width:100%">';
+  h+='<div style="overflow-x:auto;-webkit-overflow-scrolling:touch">';
+  h+='<table class="tbl" style="table-layout:fixed;min-width:750px">';
   h+='<thead><tr>';
-  h+='<th style="width:70px">N°</th>';
-  h+='<th style="width:140px">Nom</th>';
-  h+='<th style="width:180px">Adresse</th>';
-  h+='<th style="width:85px">Interv.</th>';
-  h+='<th style="width:50px;text-align:center">H.</th>';
-  h+='<th style="width:55px;text-align:center">Prix</th>';
-  h+='<th style="width:110px">Statut</th>';
-  h+='<th style="width:120px" colspan="2">N° fact. / Envoi / Paiement</th>';
+  h+='<th style="width:55px">N°</th>';
+  h+='<th style="width:110px">Nom</th>';
+  h+='<th style="width:120px">Adresse</th>';
+  h+='<th style="width:75px">Interv.</th>';
+  h+='<th style="width:40px;text-align:center">H.</th>';
+  h+='<th style="width:50px;text-align:center">Prix</th>';
+  h+='<th style="width:100px">Statut</th>';
+  h+='<th style="width:80px">N° fact.</th>';
+  h+='<th style="width:80px">Envoi</th>';
+  h+='<th style="width:80px">Paiement</th>';
   h+='</tr></thead>';
   h+='<tbody id="frelon-tbody"></tbody></table></div>';
 
@@ -2501,30 +2509,31 @@ function renderFrelons(){
 
 function triggerImportFrelon(){
   var inp=document.getElementById('frelons-csv-input');
-  if(inp){inp.click();}
+  if(inp)inp.click();
+}
+
+function showAutoSave(){
+  var el=document.getElementById('autosave-ind');
+  if(!el)return;
+  el.style.opacity='1';
+  clearTimeout(el._t);
+  el._t=setTimeout(function(){el.style.opacity='0';},1500);
 }
 
 function renderFreloTable(){
   var search=(frelonSearch||'').toLowerCase();
   var filter=frelonFilter||'';
   var rows=signalements.filter(function(s){
-    if(filter){
-      var sf=s.statut_facture||'';
-      if(filter==='a_faire'&&sf!=='a_faire')return false;
-      if(filter==='envoyee'&&sf!=='envoyee')return false;
-      if(filter==='non_concerne'&&sf!=='non_concerne')return false;
-    }
+    if(filter){var sf=s.statut_facture||'';if(sf!==filter)return false;}
     if(search){
       var hay=((s.num_signalement||'')+' '+(s.nom||'')+' '+(s.prenom||'')+' '+(s.adresse||'')+' '+(s.cc||'')).toLowerCase();
       if(!hay.includes(search))return false;
     }
     return true;
   });
-
   var tbody=document.getElementById('frelon-tbody');
   if(!tbody)return;
-  if(rows.length===0){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--tx3)">Aucun résultat — importez votre CSV</td></tr>';return;}
-
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;padding:30px;color:var(--tx3)">Aucun résultat — importez votre CSV</td></tr>';return;}
   var h='';
   rows.forEach(function(s,i){
     var sf=s.statut_facture||'';
@@ -2533,35 +2542,30 @@ function renderFreloTable(){
     if(sf==='a_faire')sfStyle='background:rgba(249,115,22,.1);color:var(--ora);border:1px solid rgba(249,115,22,.25)';
     else if(sf==='envoyee')sfStyle='background:rgba(46,168,74,.1);color:var(--grn);border:1px solid rgba(46,168,74,.25)';
     else sfStyle='background:var(--surf2);color:var(--tx3);border:1px solid var(--bord)';
-    h+='<tr style="'+bg+';border-bottom:1px solid var(--bord)">';
-    h+='<td style="font-weight:700;font-family:DM Mono,monospace;font-size:12px">'+(s.num_signalement||'')+'</td>';
-    h+='<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px">'+(s.prenom||'')+' '+(s.nom||'')+'</td>';
-    h+='<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--tx2)">'+(s.adresse||'')+'</td>';
-    h+='<td style="font-size:12px;color:var(--tx2)">'+(s.date_intervention||'—')+'</td>';
     var hVal=s.hauteur!==null&&s.hauteur!==undefined?s.hauteur+'m':'—';
     var pVal=frelon_prix(s.hauteur);
-    var pColor=s.hauteur<=3?'var(--grn)':s.hauteur<=9?'var(--blu)':s.hauteur<=20?'var(--yel)':'var(--acc)';
-    h+='<td style="font-size:12px;color:var(--tx2);text-align:center">'+hVal+'</td>';
+    var pColor=parseFloat(s.hauteur)<=3?'var(--grn)':parseFloat(s.hauteur)<=9?'var(--blu)':parseFloat(s.hauteur)<=20?'var(--yel)':'var(--acc)';
+    var alertBg='';
+    if(sf==='envoyee'&&s.date_envoi_facture&&!s.date_paiement){
+      var diff=Math.floor((Date.now()-new Date(s.date_envoi_facture))/(1000*60*60*24));
+      if(diff>30)alertBg='background:rgba(249,115,22,.1);';
+    }
+    h+='<tr style="'+bg+';border-bottom:1px solid var(--bord)">';
+    h+='<td style="font-weight:700;font-family:DM Mono,monospace;font-size:11px">'+s.num_signalement+'</td>';
+    h+='<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px" title="'+s.prenom+' '+s.nom+'">'+s.prenom+' '+s.nom+'</td>';
+    h+='<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--tx2)" title="'+s.adresse+'">'+s.adresse+'</td>';
+    h+='<td style="font-size:11px;color:var(--tx2)">'+(s.date_intervention||'—')+'</td>';
+    h+='<td style="font-size:11px;color:var(--tx2);text-align:center">'+hVal+'</td>';
     h+='<td style="font-size:12px;font-weight:700;color:'+pColor+';text-align:center">'+pVal+'</td>';
-    h+='<td><select style="font-size:12px;padding:3px 6px;border-radius:7px;'+sfStyle+';width:100%;font-family:DM Sans,sans-serif" onchange="updateFrelon('+s.id+',\'statut_facture\',this.value)">';
+    h+='<td><select style="font-size:11px;padding:2px 4px;border-radius:6px;'+sfStyle+';width:100%" onchange="updateFrelon('+s.id+',\'statut_facture\',this.value)">';
     h+='<option value="" '+(sf===''?'selected':'')+'>—</option>';
     h+='<option value="a_faire" '+(sf==='a_faire'?'selected':'')+'>🟠 À faire</option>';
     h+='<option value="envoyee" '+(sf==='envoyee'?'selected':'')+'>✅ Envoyée</option>';
     h+='<option value="non_concerne" '+(sf==='non_concerne'?'selected':'')+'>— Non concerné</option>';
     h+='</select></td>';
-
-    var alertRelance='';
-    if(sf==='envoyee'&&s.date_envoi_facture&&!s.date_paiement){
-      var dEnvoi=new Date(s.date_envoi_facture);
-      var diffJ=Math.floor((Date.now()-dEnvoi)/(1000*60*60*24));
-      if(diffJ>30)alertRelance='background:rgba(249,115,22,.12);';
-    }
-    h+='<td colspan="2" style="'+alertRelance+'padding:4px 8px">';
-    h+='<div style="display:flex;flex-direction:column;gap:4px">';
-    h+='<input type="text" id="nf2_'+s.id+'" value="'+(s.num_facture||'')+'" placeholder="F-2026-001" class="fi" style="font-size:11px;padding:3px 6px;height:auto" oninput="autoSaveFrelon('+s.id+')">';
-    h+='<input type="date" id="de_'+s.id+'" value="'+(s.date_envoi_facture||'')+'" class="fi" style="font-size:11px;padding:3px 6px;height:auto" onchange="updateFrelon('+s.id+',\'date_envoi_facture\',this.value)">';
-    h+='<input type="date" id="dp_'+s.id+'" value="'+(s.date_paiement||'')+'" class="fi" style="font-size:11px;padding:3px 6px;height:auto" onchange="updateFrelon('+s.id+',\'date_paiement\',this.value)">';
-    h+='</div></td>';
+    h+='<td><input type="text" id="nf_'+s.id+'" value="'+(s.num_facture||'')+'" placeholder="F-2026-001" class="fi" style="font-size:11px;padding:2px 5px;height:auto;width:100%" oninput="autoSaveFrelon('+s.id+')"></td>';
+    h+='<td style="'+alertBg+'"><input type="date" id="de_'+s.id+'" value="'+(s.date_envoi_facture||'')+'" class="fi" style="font-size:11px;padding:2px 4px;height:auto;width:100%" onchange="updateFrelon('+s.id+',\'date_envoi_facture\',this.value)"></td>';
+    h+='<td><input type="date" id="dp_'+s.id+'" value="'+(s.date_paiement||'')+'" class="fi" style="font-size:11px;padding:2px 4px;height:auto;width:100%" onchange="updateFrelon('+s.id+',\'date_paiement\',this.value)"></td>';
     h+='</tr>';
   });
   tbody.innerHTML=h;
@@ -2572,26 +2576,17 @@ function updateFrelon(id,field,val){
   if(!s)return;
   s[field]=val||null;
   var upd={};upd[field]=val||null;
-  db.from('signalements_frelons').update(upd).eq('id',id).then(function(){
-    showAutoSave();
-  });
+  db.from('signalements_frelons').update(upd).eq('id',id).then(function(){showAutoSave();});
   if(field==='statut_facture')renderFreloTable();
 }
 
-var autoSaveTimer=null;
 function autoSaveFrelon(id){
   clearTimeout(autoSaveTimer);
   autoSaveTimer=setTimeout(function(){
     var s=signalements.find(function(x){return x.id===id;});
     if(!s)return;
     var inp=document.getElementById('nf_'+id);
-    var de=document.getElementById('de_'+id);
-    var dp=document.getElementById('dp_'+id);
-    var inp2=document.getElementById('nf2_'+id);
     if(inp)s.num_facture=inp.value.trim();
-    else if(inp2)s.num_facture=inp2.value.trim();
-    if(de)s.date_envoi_facture=de.value||null;
-    if(dp)s.date_paiement=dp.value||null;
     db.from('signalements_frelons').update({
       num_facture:s.num_facture||'',
       statut_facture:s.statut_facture||'',
@@ -2601,37 +2596,74 @@ function autoSaveFrelon(id){
   },800);
 }
 
-function showAutoSave(){
-  var el=document.getElementById('autosave-indicator');
-  if(!el)return;
-  el.style.opacity='1';
-  clearTimeout(el._t);
-  el._t=setTimeout(function(){el.style.opacity='0';},1500);
+function renderFreloFactures(){
+  var grouped={};
+  signalements.forEach(function(s){
+    var nf=(s.num_facture||'').trim()||'__sans__';
+    if(!grouped[nf])grouped[nf]=[];
+    grouped[nf].push(s);
+  });
+  var keys=Object.keys(grouped).sort(function(a,b){
+    if(a==='__sans__')return 1;if(b==='__sans__')return -1;return b.localeCompare(a);
+  });
+  var totalHT=signalements.reduce(function(acc,s){return acc+frelon_montant(s.hauteur);},0);
+  var nbF=keys.filter(function(k){return k!=='__sans__';}).length;
+  var h='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:14px">';
+  h+='<div style="background:#fff;border:1px solid var(--bord);border-radius:12px;padding:10px 12px"><div style="font-size:10px;color:var(--tx3);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px">Factures</div><div style="font-family:Bebas Neue,sans-serif;font-size:26px">'+nbF+'</div></div>';
+  h+='<div style="background:#f0fdf5;border:1px solid rgba(46,168,74,.3);border-radius:12px;padding:10px 12px"><div style="font-size:10px;color:var(--tx3);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px">CA total HT</div><div style="font-family:Bebas Neue,sans-serif;font-size:26px;color:var(--grn)">'+totalHT+'€</div></div>';
+  h+='</div>';
+  keys.forEach(function(nf){
+    var rows=grouped[nf];
+    var isSans=nf==='__sans__';
+    var total=rows.reduce(function(acc,s){return acc+frelon_montant(s.hauteur);},0);
+    var allEnv=rows.every(function(s){return s.statut_facture==='envoyee';});
+    var relance=false;
+    if(allEnv){rows.forEach(function(s){
+      if(s.date_envoi_facture&&!s.date_paiement){
+        if(Math.floor((Date.now()-new Date(s.date_envoi_facture))/(1000*60*60*24))>30)relance=true;
+      }
+    });}
+    h+='<div style="background:#fff;border:1px solid '+(relance?'rgba(230,48,48,.4)':'var(--bord)')+';border-radius:12px;margin-bottom:10px;overflow:hidden">';
+    h+='<div style="padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bord)">';
+    h+='<div style="display:flex;align-items:center;gap:8px">';
+    h+='<span style="font-family:DM Mono,monospace;font-weight:700;font-size:14px">'+(isSans?'Sans facture':nf)+'</span>';
+    if(relance)h+='<span style="font-size:11px;background:rgba(230,48,48,.1);color:var(--red);border:1px solid rgba(230,48,48,.25);border-radius:6px;padding:2px 8px">Relance !</span>';
+    h+='</div><span style="font-size:16px;font-weight:700;color:var(--grn)">'+total+'€ HT</span></div>';
+    rows.forEach(function(s){
+      var sf=s.statut_facture||'';
+      h+='<div style="padding:7px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(0,0,0,.04);font-size:12px">';
+      h+='<div style="display:flex;gap:8px;align-items:center;overflow:hidden">';
+      h+='<span style="font-family:DM Mono,monospace;font-size:10px;color:var(--tx3);flex-shrink:0">'+s.num_signalement+'</span>';
+      h+='<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+s.prenom+' '+s.nom+'</span>';
+      h+='<span style="color:var(--tx2);font-size:11px;flex-shrink:0">'+(s.hauteur?s.hauteur+'m':'—')+'</span>';
+      h+='</div>';
+      h+='<div style="display:flex;align-items:center;gap:6px;flex-shrink:0">';
+      h+='<span style="font-weight:700;color:var(--grn)">'+frelon_prix(s.hauteur)+'</span>';
+      h+='<select style="font-size:11px;padding:2px 4px;border-radius:6px;background:var(--surf2);border:1px solid var(--bord)" onchange="updateFrelon('+s.id+',\'statut_facture\',this.value)">';
+      h+='<option value="" '+(sf===''?'selected':'')+'>—</option>';
+      h+='<option value="a_faire" '+(sf==='a_faire'?'selected':'')+'>🟠 À faire</option>';
+      h+='<option value="envoyee" '+(sf==='envoyee'?'selected':'')+'>✅ Envoyée</option>';
+      h+='<option value="non_concerne" '+(sf==='non_concerne'?'selected':'')+'>— Non concerné</option>';
+      h+='</select></div></div>';
+    });
+    h+='</div>';
+  });
+  document.getElementById('page').innerHTML+=h;
 }
 
-function saveFrelon(id){
-  var s=signalements.find(function(x){return x.id===id;});
-  if(!s)return;
-  var inp=document.getElementById('nf_'+id);
-  var nf=inp?inp.value.trim():'';
-  s.num_facture=nf;
-  var de=document.getElementById('de_'+id);
-  var dp=document.getElementById('dp_'+id);
-  s.date_envoi_facture=de?de.value:'';
-  s.date_paiement=dp?dp.value:'';
-  db.from('signalements_frelons').update({
-    num_facture:nf,
-    statut_facture:s.statut_facture||'',
-    date_envoi_facture:s.date_envoi_facture||null,
-    date_paiement:s.date_paiement||null
-  }).eq('id',id).then(function(){
-    toast('✓ Sauvegardé');
-    renderFreloTable();
-  });
+function frelon_prix(h){
+  if(h===null||h===undefined||h==='')return'—';
+  h=parseFloat(h);if(isNaN(h))return'—';
+  if(h<=3)return'80€';if(h<=9)return'100€';if(h<=20)return'140€';return'180€';
+}
+
+function frelon_montant(h){
+  if(h===null||h===undefined||h==='')return 0;
+  h=parseFloat(h);if(isNaN(h))return 0;
+  if(h<=3)return 80;if(h<=9)return 100;if(h<=20)return 140;return 180;
 }
 
 function parseCSVFull(text){
-  // Parser CSV complet qui gère les champs multi-lignes entre guillemets
   var rows=[],cur=[],field='',inQ=false;
   text=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
   for(var i=0;i<text.length;i++){
@@ -2640,7 +2672,7 @@ function parseCSVFull(text){
       if(c==='"'&&text[i+1]==='"'){field+='"';i++;}
       else if(c==='"'){inQ=false;}
       else{field+=c;}
-    } else {
+    }else{
       if(c==='"'){inQ=true;}
       else if(c===';'){cur.push(field.trim());field='';}
       else if(c==='\n'){cur.push(field.trim());field='';if(cur.some(function(f){return f!=='';}))rows.push(cur);cur=[];}
@@ -2665,55 +2697,39 @@ function importFretonCSV(input){
     var iAddr=headers.findIndex(function(h){return h.includes('Adresse');});
     var iDate=headers.findIndex(function(h){return h.includes("Date d'intervention");});
     var iCC=headers.findIndex(function(h){return h.includes('communes')||h.includes('Communauté');});
-    var iHaut=headers.findIndex(function(h){return h.includes('hauteur');});
-
+    var iHaut=headers.findIndex(function(h){return h.toLowerCase().includes('hauteur');});
     var toInsert=[];
     for(var i=1;i<rows.length;i++){
       var cols=rows[i];
       var num=iNum>=0?(cols[iNum]||'').trim():'';
       if(!num||isNaN(parseInt(num)))continue;
-      // Ignorer si pas de date ou antérieur à 2026
       var dateStr=iDate>=0?(cols[iDate]||''):'';
       if(!dateStr)continue;
       var yearMatch=dateStr.match(/(\d{4})/);
       if(!yearMatch||parseInt(yearMatch[1])<2026)continue;
-      var exists=signalements.find(function(s){return s.num_signalement===num;});
-      if(exists)continue;
+      if(signalements.find(function(s){return s.num_signalement===num;}))continue;
       toInsert.push({
         num_signalement:num,
         prenom:iPrenom>=0?(cols[iPrenom]||'').trim():'',
         nom:iNom>=0?(cols[iNom]||'').trim():'',
         adresse:iAddr>=0?(cols[iAddr]||'').trim():'',
-        date_intervention:iDate>=0?freloFmtDate(cols[iDate]||''):'',
+        date_intervention:freloFmtDate(dateStr),
         cc:iCC>=0?(cols[iCC]||'').trim():'',
         hauteur:iHaut>=0?parseFloat(cols[iHaut]||'')||null:null,
-        statut_facture:'',
-        num_facture:''
+        statut_facture:'',num_facture:''
       });
     }
-    if(toInsert.length===0){toast('Aucun nouveau signalement à importer');renderFrelons();return;}
+    if(!toInsert.length){toast('Aucun nouveau signalement à importer');renderFrelons();return;}
     syncOn();
     db.from('signalements_frelons').insert(toInsert).select().then(function(r){
       syncOff();
-      if(r.error){toast('⚠️ Erreur : '+r.error.message,true);return;}
+      if(r.error){toast('⚠️ '+r.error.message,true);return;}
       (r.data||[]).forEach(function(row){signalements.push(row);});
       toast('✅ '+toInsert.length+' signalement(s) importé(s)');
       renderFrelons();
     });
   };
   reader.readAsText(file,'UTF-8');
-}
-
-
-function frelon_prix(h){
-  if(h===null||h===undefined||h==='')return'—';
-  h=parseFloat(h);
-  if(isNaN(h))return'—';
-  if(h<=3)return'80€';
-  if(h<=9)return'100€';
-  if(h<=20)return'140€';
-  if(h<=30)return'180€';
-  return'180€+';
 }
 
 function freloFmtDate(d){
@@ -2724,119 +2740,14 @@ function freloFmtDate(d){
   return m[1]+'/'+(mo[m[2]]||'??')+'/'+m[3];
 }
 
-
-function renderFreloFactures(container){
-  var grouped={};
-  signalements.forEach(function(s){
-    var nf=(s.num_facture||'').trim();
-    if(!nf)nf='__sans_facture__';
-    if(!grouped[nf])grouped[nf]=[];
-    grouped[nf].push(s);
-  });
-
-  var keys=Object.keys(grouped).sort(function(a,b){
-    if(a==='__sans_facture__')return 1;
-    if(b==='__sans_facture__')return -1;
-    return b.localeCompare(a);
-  });
-
-  var sl={'a_faire':'🟠 À faire','envoyee':'✅ Envoyée','non_concerne':'— Non concerné','':"—"};
-  var h='';
-
-  // Stats rapides
-  var totalHT=0;
-  signalements.forEach(function(s){totalHT+=frelon_montant(s.hauteur);});
-  var nbFactures=keys.filter(function(k){return k!=='__sans_facture__';}).length;
-
-  h+='<div style="display:flex;gap:6px;margin-bottom:14px">';
-  h+='<button class="btn btn-sm btn-g" onclick="frelonVue=\'lignes\';renderFrelons()">Lignes</button>';
-  h+='<button class="btn btn-sm btn-r" onclick="frelonVue=\'factures\';renderFrelons()">Par facture</button>';
-  h+='</div>';
-
-  h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:18px">';
-  h+='<div style="background:#fff;border:1px solid var(--bord);border-radius:12px;padding:12px 14px"><div style="font-size:10px;color:var(--tx3);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Factures</div><div style="font-family:Bebas Neue,sans-serif;font-size:28px;color:var(--tx)">'+nbFactures+'</div></div>';
-  h+='<div style="background:#f0fdf5;border:1px solid rgba(46,168,74,.3);border-radius:12px;padding:12px 14px"><div style="font-size:10px;color:var(--tx3);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">CA total HT</div><div style="font-family:Bebas Neue,sans-serif;font-size:28px;color:var(--grn)">'+totalHT+'€</div></div>';
-  h+='</div>';
-
-  keys.forEach(function(nf){
-    var rows=grouped[nf];
-    var isSans=nf==='__sans_facture__';
-    var total=rows.reduce(function(acc,s){return acc+frelon_montant(s.hauteur);},0);
-
-    // Statut dominant
-    var allEnv=rows.every(function(s){return s.statut_facture==='envoyee';});
-    var anyFaire=rows.some(function(s){return s.statut_facture==='a_faire';});
-    var statut=allEnv?'envoyee':anyFaire?'a_faire':'';
-
-    // Alerte relance
-    var relance=false;
-    if(allEnv){
-      rows.forEach(function(s){
-        if(s.date_envoi_facture&&!s.date_paiement){
-          var diff=Math.floor((Date.now()-new Date(s.date_envoi_facture))/(1000*60*60*24));
-          if(diff>30)relance=true;
-        }
-      });
-    }
-
-    var cardBorder=relance?'border:1px solid rgba(230,48,48,.4)':isSans?'border:1px solid var(--bord)':'border:1px solid var(--bord)';
-    var cardBg=relance?'background:rgba(230,48,48,.04)':'background:#fff';
-
-    h+='<div style="'+cardBg+';'+cardBorder+';border-radius:12px;margin-bottom:12px;overflow:hidden">';
-
-    // Header facture
-    h+='<div style="padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bord)">';
-    h+='<div style="display:flex;align-items:center;gap:10px">';
-    h+='<span style="font-family:DM Mono,monospace;font-weight:700;font-size:14px">'+(isSans?'Sans facture':nf)+'</span>';
-    if(relance)h+='<span style="font-size:11px;background:rgba(230,48,48,.1);color:var(--red);border:1px solid rgba(230,48,48,.25);border-radius:6px;padding:2px 8px">Relance !</span>';
-    h+='</div>';
-    h+='<span style="font-size:16px;font-weight:700;color:'+(total>0?'var(--grn)':'var(--tx3)')+'">'+total+'€ HT</span>';
-    h+='</div>';
-
-    // Lignes interventions
-    rows.forEach(function(s){
-      var prix=frelon_prix(s.hauteur);
-      var sf=s.statut_facture||'';
-      h+='<div style="padding:8px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(0,0,0,.04);font-size:13px">';
-      h+='<div style="display:flex;gap:10px;align-items:center">';
-      h+='<span style="font-family:DM Mono,monospace;font-size:11px;color:var(--tx3)">'+s.num_signalement+'</span>';
-      h+='<span style="color:var(--tx)">'+s.prenom+' '+s.nom+'</span>';
-      h+='<span style="color:var(--tx2);font-size:12px">'+(s.hauteur?s.hauteur+'m':'—')+'</span>';
-      h+='</div>';
-      h+='<div style="display:flex;align-items:center;gap:8px">';
-      h+='<span style="font-weight:700;color:var(--grn)">'+prix+'</span>';
-      h+='<select style="font-size:11px;padding:2px 5px;border-radius:6px;background:var(--surf2);border:1px solid var(--bord)" onchange="updateFrelon('+s.id+',\'statut_facture\',this.value)">';
-      h+='<option value="" '+(sf===''?'selected':'')+'>—</option>';
-      h+='<option value="a_faire" '+(sf==='a_faire'?'selected':'')+'>🟠 À faire</option>';
-      h+='<option value="envoyee" '+(sf==='envoyee'?'selected':'')+'>✅ Envoyée</option>';
-      h+='<option value="non_concerne" '+(sf==='non_concerne'?'selected':'')+'>— Non concerné</option>';
-      h+='</select>';
-      h+='</div>';
-      h+='</div>';
-    });
-
-    h+='</div>';
-  });
-
-  container.innerHTML=h;
-}
-
-function frelon_montant(h){
-  if(h===null||h===undefined||h==='')return 0;
-  h=parseFloat(h);
-  if(isNaN(h))return 0;
-  if(h<=3)return 80;
-  if(h<=9)return 100;
-  if(h<=20)return 140;
-  return 180;
-}
-
 function exportFrelonsCSV(){
   if(!signalements.length)return;
   var sl={'a_faire':'À faire','envoyee':'Envoyée','non_concerne':'Non concerné','':"—"};
-  var csv='N°;Prénom;Nom;Adresse;Date intervention;Statut facture;N° facture\n';
+  var csv='N°;Prénom;Nom;Adresse;Date intervention;Hauteur;Prix;Statut facture;N° facture;Date envoi;Date paiement\n';
   signalements.forEach(function(s){
-    csv+=(s.num_signalement||'')+';'+(s.prenom||'')+';'+(s.nom||'')+';"'+(s.adresse||'')+'";'+(s.date_intervention||'')+';'+(sl[s.statut_facture||'']||'—')+';'+(s.num_facture||'')+'\n';
+    csv+=(s.num_signalement||'')+';'+(s.prenom||'')+';'+(s.nom||'')+';"'+(s.adresse||'')+'";'+(s.date_intervention||'');
+    csv+=';'+(s.hauteur||'')+';'+frelon_prix(s.hauteur)+';'+(sl[s.statut_facture||'']||'—')+';'+(s.num_facture||'');
+    csv+=';'+(s.date_envoi_facture||'')+';'+(s.date_paiement||'')+'\n';
   });
   var blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
   var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='suivi_factures_frelons.csv';a.click();
