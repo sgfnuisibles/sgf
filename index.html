@@ -2562,14 +2562,35 @@ function saveFrelon(id){
   });
 }
 
+function parseCSVFull(text){
+  // Parser CSV complet qui gère les champs multi-lignes entre guillemets
+  var rows=[],cur=[],field='',inQ=false;
+  text=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  for(var i=0;i<text.length;i++){
+    var c=text[i];
+    if(inQ){
+      if(c==='"'&&text[i+1]==='"'){field+='"';i++;}
+      else if(c==='"'){inQ=false;}
+      else{field+=c;}
+    } else {
+      if(c==='"'){inQ=true;}
+      else if(c===';'){cur.push(field.trim());field='';}
+      else if(c==='\n'){cur.push(field.trim());field='';if(cur.some(function(f){return f!=='';}))rows.push(cur);cur=[];}
+      else{field+=c;}
+    }
+  }
+  if(field.trim()!==''||cur.length>0){cur.push(field.trim());if(cur.some(function(f){return f!=='';}))rows.push(cur);}
+  return rows;
+}
+
 function importFretonCSV(input){
   var file=input.files[0];if(!file)return;
   var reader=new FileReader();
   reader.onload=function(e){
     var text=e.target.result.replace(/^\uFEFF/,'');
-    var lines=text.split('\n').filter(function(l){return l.trim();});
-    if(lines.length<2){toast('⚠️ CSV vide',true);return;}
-    var headers=splitSemiCSV(lines[0]);
+    var rows=parseCSVFull(text);
+    if(rows.length<2){toast('⚠️ CSV vide',true);return;}
+    var headers=rows[0];
     var iNum=headers.findIndex(function(h){return h.trim()==='N°';});
     var iPrenom=headers.findIndex(function(h){return h.includes('Prénom')&&!h.includes('Propriétaire');});
     var iNom=headers.findIndex(function(h){return h.trim()==='Nom';});
@@ -2578,10 +2599,10 @@ function importFretonCSV(input){
     var iCC=headers.findIndex(function(h){return h.includes('communes')||h.includes('Communauté');});
 
     var toInsert=[];
-    for(var i=1;i<lines.length;i++){
-      var cols=splitSemiCSV(lines[i]);
+    for(var i=1;i<rows.length;i++){
+      var cols=rows[i];
       var num=iNum>=0?(cols[iNum]||'').trim():'';
-      if(!num)continue;
+      if(!num||isNaN(parseInt(num)))continue;
       var exists=signalements.find(function(s){return s.num_signalement===num;});
       if(exists)continue;
       toInsert.push({
@@ -2606,18 +2627,6 @@ function importFretonCSV(input){
     });
   };
   reader.readAsText(file,'UTF-8');
-}
-
-function splitSemiCSV(line){
-  var res=[],cur='',inQ=false;
-  for(var i=0;i<line.length;i++){
-    var c=line[i];
-    if(c==='"'){inQ=!inQ;}
-    else if(c===';'&&!inQ){res.push(cur.trim().replace(/^"|"$/g,''));cur='';}
-    else{cur+=c;}
-  }
-  res.push(cur.trim().replace(/^"|"$/g,''));
-  return res;
 }
 
 function freloFmtDate(d){
