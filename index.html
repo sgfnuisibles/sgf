@@ -2484,7 +2484,9 @@ function renderFrelons(){
   h+='<th style="width:50px;text-align:center">H.</th>';
   h+='<th style="width:55px;text-align:center">Prix</th>';
   h+='<th style="width:110px">Statut</th>';
-  h+='<th style="width:95px">N° fact.</th>';
+  h+='<th style="width:90px">N° fact.</th>';
+  h+='<th style="width:95px">Envoi fact.</th>';
+  h+='<th style="width:95px">Paiement</th>';
   h+='<th style="width:40px"></th>';
   h+='</tr></thead>';
   h+='<tbody id="frelon-tbody"></tbody></table></div>';
@@ -2537,25 +2539,37 @@ function renderFreloTable(){
     var pColor=s.hauteur<=3?'var(--grn)':s.hauteur<=9?'var(--blu)':s.hauteur<=20?'var(--yel)':'var(--acc)';
     h+='<td style="font-size:12px;color:var(--tx2);text-align:center">'+hVal+'</td>';
     h+='<td style="font-size:12px;font-weight:700;color:'+pColor+';text-align:center">'+pVal+'</td>';
-    h+='<td><select style="font-size:12px;padding:3px 6px;border-radius:7px;'+sfStyle+';width:100%;font-family:DM Sans,sans-serif" onchange="updateFrelon('+s.id+',this.value)">';
+    h+='<td><select style="font-size:12px;padding:3px 6px;border-radius:7px;'+sfStyle+';width:100%;font-family:DM Sans,sans-serif" onchange="updateFrelon('+s.id+','statut_facture',this.value)">';
     h+='<option value="" '+(sf===''?'selected':'')+'>—</option>';
     h+='<option value="a_faire" '+(sf==='a_faire'?'selected':'')+'>🟠 À faire</option>';
     h+='<option value="envoyee" '+(sf==='envoyee'?'selected':'')+'>✅ Envoyée</option>';
     h+='<option value="non_concerne" '+(sf==='non_concerne'?'selected':'')+'>— Non concerné</option>';
     h+='</select></td>';
     h+='<td><input type="text" id="nf_'+s.id+'" value="'+(s.num_facture||'')+'" placeholder="F2025-001" class="fi" style="font-size:12px;padding:4px 8px;height:auto" onkeydown="if(event.key===\'Enter\')saveFrelon('+s.id+')"></td>';
+    var deStyle='font-size:11px;padding:3px 5px;width:100%;border-radius:6px';
+    var dpStyle='font-size:11px;padding:3px 5px;width:100%;border-radius:6px';
+    // Alerte relance : envoyée depuis >30j sans paiement
+    var alertRelance='';
+    if(sf==='envoyee'&&s.date_envoi_facture&&!s.date_paiement){
+      var dEnvoi=new Date(s.date_envoi_facture);
+      var diffJ=Math.floor((Date.now()-dEnvoi)/(1000*60*60*24));
+      if(diffJ>30)alertRelance='background:rgba(249,115,22,.12);';
+    }
+    h+='<td style="'+alertRelance+'"><input type="date" id="de_'+s.id+'" value="'+(s.date_envoi_facture||'')+'" class="fi" style="'+deStyle+'" onchange="updateFrelon('+s.id+','date_envoi_facture',this.value)"></td>';
+    h+='<td><input type="date" id="dp_'+s.id+'" value="'+(s.date_paiement||'')+'" class="fi" style="'+dpStyle+'" onchange="updateFrelon('+s.id+','date_paiement',this.value)"></td>';
     h+='<td style="text-align:center"><button class="btn btn-g btn-xs" onclick="saveFrelon('+s.id+')" title="Sauvegarder">💾</button></td>';
     h+='</tr>';
   });
   tbody.innerHTML=h;
 }
 
-function updateFrelon(id,val){
+function updateFrelon(id,field,val){
   var s=signalements.find(function(x){return x.id===id;});
   if(!s)return;
-  s.statut_facture=val;
-  db.from('signalements_frelons').update({statut_facture:val}).eq('id',id).then(function(){});
-  renderFreloTable();
+  s[field]=val||null;
+  var upd={};upd[field]=val||null;
+  db.from('signalements_frelons').update(upd).eq('id',id).then(function(){});
+  if(field==='statut_facture')renderFreloTable();
 }
 
 function saveFrelon(id){
@@ -2564,8 +2578,18 @@ function saveFrelon(id){
   var inp=document.getElementById('nf_'+id);
   var nf=inp?inp.value.trim():'';
   s.num_facture=nf;
-  db.from('signalements_frelons').update({num_facture:nf,statut_facture:s.statut_facture||''}).eq('id',id).then(function(){
+  var de=document.getElementById('de_'+id);
+  var dp=document.getElementById('dp_'+id);
+  s.date_envoi_facture=de?de.value:'';
+  s.date_paiement=dp?dp.value:'';
+  db.from('signalements_frelons').update({
+    num_facture:nf,
+    statut_facture:s.statut_facture||'',
+    date_envoi_facture:s.date_envoi_facture||null,
+    date_paiement:s.date_paiement||null
+  }).eq('id',id).then(function(){
     toast('✓ Sauvegardé');
+    renderFreloTable();
   });
 }
 
@@ -2611,6 +2635,9 @@ function importFretonCSV(input){
       var cols=rows[i];
       var num=iNum>=0?(cols[iNum]||'').trim():'';
       if(!num||isNaN(parseInt(num)))continue;
+      // Ignorer les interventions antérieures à 2026
+      var dateStr=iDate>=0?(cols[iDate]||''):'';
+      if(dateStr&&!dateStr.includes('2026'))continue;
       var exists=signalements.find(function(s){return s.num_signalement===num;});
       if(exists)continue;
       toInsert.push({
