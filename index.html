@@ -2491,10 +2491,7 @@ function renderFrelons(){
   h+='<th style="width:50px;text-align:center">H.</th>';
   h+='<th style="width:55px;text-align:center">Prix</th>';
   h+='<th style="width:110px">Statut</th>';
-  h+='<th style="width:90px">N° fact.</th>';
-  h+='<th style="width:95px">Envoi fact.</th>';
-  h+='<th style="width:95px">Paiement</th>';
-  h+='<th style="width:40px"></th>';
+  h+='<th style="width:120px" colspan="2">N° fact. / Envoi / Paiement</th>';
   h+='</tr></thead>';
   h+='<tbody id="frelon-tbody"></tbody></table></div>';
 
@@ -2552,18 +2549,19 @@ function renderFreloTable(){
     h+='<option value="envoyee" '+(sf==='envoyee'?'selected':'')+'>✅ Envoyée</option>';
     h+='<option value="non_concerne" '+(sf==='non_concerne'?'selected':'')+'>— Non concerné</option>';
     h+='</select></td>';
-    h+='<td><input type="text" id="nf_'+s.id+'" value="'+(s.num_facture||'')+'" placeholder="F-2026-001" class="fi" style="font-size:12px;padding:4px 8px;height:auto" oninput="autoSaveFrelon('+s.id+')" onchange="autoSaveFrelon('+s.id+')"></td>';
-    var deStyle='font-size:11px;padding:3px 5px;width:100%;border-radius:6px';
-    var dpStyle='font-size:11px;padding:3px 5px;width:100%;border-radius:6px';
-    // Alerte relance : envoyée depuis >30j sans paiement
+
     var alertRelance='';
     if(sf==='envoyee'&&s.date_envoi_facture&&!s.date_paiement){
       var dEnvoi=new Date(s.date_envoi_facture);
       var diffJ=Math.floor((Date.now()-dEnvoi)/(1000*60*60*24));
       if(diffJ>30)alertRelance='background:rgba(249,115,22,.12);';
     }
-    h+='<td style="'+alertRelance+'"><input type="date" id="de_'+s.id+'" value="'+(s.date_envoi_facture||'')+'" class="fi" style="'+deStyle+'" onchange="updateFrelon('+s.id+',\'date_envoi_facture\',this.value)"></td>';
-    h+='<td><input type="date" id="dp_'+s.id+'" value="'+(s.date_paiement||'')+'" class="fi" style="'+dpStyle+'" onchange="updateFrelon('+s.id+',\'date_paiement\',this.value)"></td>';
+    h+='<td colspan="2" style="'+alertRelance+'padding:4px 8px">';
+    h+='<div style="display:flex;flex-direction:column;gap:4px">';
+    h+='<input type="text" id="nf2_'+s.id+'" value="'+(s.num_facture||'')+'" placeholder="F-2026-001" class="fi" style="font-size:11px;padding:3px 6px;height:auto" oninput="autoSaveFrelon('+s.id+')">';
+    h+='<input type="date" id="de_'+s.id+'" value="'+(s.date_envoi_facture||'')+'" class="fi" style="font-size:11px;padding:3px 6px;height:auto" onchange="updateFrelon('+s.id+',\'date_envoi_facture\',this.value)">';
+    h+='<input type="date" id="dp_'+s.id+'" value="'+(s.date_paiement||'')+'" class="fi" style="font-size:11px;padding:3px 6px;height:auto" onchange="updateFrelon('+s.id+',\'date_paiement\',this.value)">';
+    h+='</div></td>';
     h+='</tr>';
   });
   tbody.innerHTML=h;
@@ -2589,7 +2587,9 @@ function autoSaveFrelon(id){
     var inp=document.getElementById('nf_'+id);
     var de=document.getElementById('de_'+id);
     var dp=document.getElementById('dp_'+id);
+    var inp2=document.getElementById('nf2_'+id);
     if(inp)s.num_facture=inp.value.trim();
+    else if(inp2)s.num_facture=inp2.value.trim();
     if(de)s.date_envoi_facture=de.value||null;
     if(dp)s.date_paiement=dp.value||null;
     db.from('signalements_frelons').update({
