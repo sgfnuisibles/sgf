@@ -2539,7 +2539,7 @@ function renderFreloTable(){
     var pColor=s.hauteur<=3?'var(--grn)':s.hauteur<=9?'var(--blu)':s.hauteur<=20?'var(--yel)':'var(--acc)';
     h+='<td style="font-size:12px;color:var(--tx2);text-align:center">'+hVal+'</td>';
     h+='<td style="font-size:12px;font-weight:700;color:'+pColor+';text-align:center">'+pVal+'</td>';
-    h+='<td><select style="font-size:12px;padding:3px 6px;border-radius:7px;'+sfStyle+';width:100%;font-family:DM Sans,sans-serif" onchange="updateFrelon('+s.id+','statut_facture',this.value)">';
+    h+='<td><select style="font-size:12px;padding:3px 6px;border-radius:7px;'+sfStyle+';width:100%;font-family:DM Sans,sans-serif" onchange="updateFrelon('+s.id+',\'statut_facture\',this.value)">';
     h+='<option value="" '+(sf===''?'selected':'')+'>—</option>';
     h+='<option value="a_faire" '+(sf==='a_faire'?'selected':'')+'>🟠 À faire</option>';
     h+='<option value="envoyee" '+(sf==='envoyee'?'selected':'')+'>✅ Envoyée</option>';
@@ -2555,8 +2555,8 @@ function renderFreloTable(){
       var diffJ=Math.floor((Date.now()-dEnvoi)/(1000*60*60*24));
       if(diffJ>30)alertRelance='background:rgba(249,115,22,.12);';
     }
-    h+='<td style="'+alertRelance+'"><input type="date" id="de_'+s.id+'" value="'+(s.date_envoi_facture||'')+'" class="fi" style="'+deStyle+'" onchange="updateFrelon('+s.id+','date_envoi_facture',this.value)"></td>';
-    h+='<td><input type="date" id="dp_'+s.id+'" value="'+(s.date_paiement||'')+'" class="fi" style="'+dpStyle+'" onchange="updateFrelon('+s.id+','date_paiement',this.value)"></td>';
+    h+='<td style="'+alertRelance+'"><input type="date" id="de_'+s.id+'" value="'+(s.date_envoi_facture||'')+'" class="fi" style="'+deStyle+'" onchange="updateFrelon('+s.id+',\'date_envoi_facture\',this.value)"></td>';
+    h+='<td><input type="date" id="dp_'+s.id+'" value="'+(s.date_paiement||'')+'" class="fi" style="'+dpStyle+'" onchange="updateFrelon('+s.id+',\'date_paiement\',this.value)"></td>';
     h+='<td style="text-align:center"><button class="btn btn-g btn-xs" onclick="saveFrelon('+s.id+')" title="Sauvegarder">💾</button></td>';
     h+='</tr>';
   });
