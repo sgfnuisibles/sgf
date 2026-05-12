@@ -274,6 +274,7 @@ body{background:var(--bg);color:var(--tx);font-family:'DM Sans',sans-serif;min-h
   <button class="mn-item" id="mn-terrain" onclick="go('terrain')"><span class="mn-icon">✅</span><span class="mn-lbl">Terrain</span></button>
   <button class="mn-item" id="mn-rapports" onclick="go('rapports')"><span class="mn-icon">📋</span><span class="mn-lbl">Rapports</span></button>
   <button class="mn-item" id="mn-facturation" onclick="go('facturation')"><span class="mn-icon">💶</span><span class="mn-lbl">Factures</span></button>
+  <button class="mn-item" id="mn-frelons" onclick="go('frelons')"><span class="mn-icon">🐝</span><span class="mn-lbl">Frelons</span></button>
 </nav>
 
 <!-- DRAWER -->
@@ -323,6 +324,7 @@ body{background:var(--bg);color:var(--tx);font-family:'DM Sans',sans-serif;min-h
       <div class="sb-sec" style="margin-top:8px">Rapports</div>
       <div class="sb-item" id="si-rapports" onclick="go('rapports')"><span class="ic">📋</span>Passages</div>
       <div class="sb-item" id="si-facturation" onclick="go('facturation')"><span class="ic">💶</span>Facturation</div>
+      <div class="sb-item" id="si-frelons" onclick="go('frelons')"><span class="ic">🐝</span>Frelons asiatiques</div>
     </nav>
     <div class="sb-foot"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="88ebe7e6fce9ebfcc8fbefeee6fde1fbe1eae4edfba6eefa">[email&#160;protected]</a></div>
   </aside>
@@ -400,7 +402,7 @@ const CONSO=[
 ];
 
 // ═══ STATE ═══
-var clients=[],contrats=[],contacts=[],postes=[],plans=[],passages=[],resultats=[],echeancier=[];
+var clients=[],contrats=[],contacts=[],postes=[],plans=[],passages=[],resultats=[],echeancier=[],signalements=[];
 var curView='clients',curPassageId=null,curPlanId=null,curContratId=null;
 var placingType=null,openPinId=null,heatmapOn=false;
 var pinDrag={pid:null,moved:false,sx:0,sy:0};
@@ -472,6 +474,10 @@ async function loadAll(){
   setLoad('Échéancier…');
   r=await db.from('echeancier').select('*').order('date_echeance');
   echeancier=r.data||[];
+
+  setLoad('Signalements frelons…');
+  r=await db.from('signalements_frelons').select('*').order('num_signalement',{ascending:false});
+  signalements=r.data||[];
 }
 
 // ═══ NAVIGATION ═══
@@ -479,12 +485,12 @@ function go(view){
   curView=view;
   // Reset terrain state when leaving terrain
   if(view!=='terrain'){curPassageId=null;curPlanId=null;curContratId=null;}
-  ['clients','terrain','rapports','facturation'].forEach(function(v){
+  ['clients','terrain','rapports','facturation','frelons'].forEach(function(v){
     var si=document.getElementById('si-'+v);var mn=document.getElementById('mn-'+v);
     if(si)si.classList.toggle('on',v===view);
     if(mn)mn.classList.toggle('on',v===view);
   });
-  var titles={clients:'CLIENTS',terrain:'TERRAIN',rapports:'PASSAGES',facturation:'FACTURATION'};
+  var titles={clients:'CLIENTS',terrain:'TERRAIN',rapports:'PASSAGES',facturation:'FACTURATION',frelons:'FRELONS ASIATIQUES'};
   document.getElementById('page-title').textContent=titles[view]||view.toUpperCase();
   if(view==='clients')renderClients();
   else if(view==='terrain'){
@@ -492,6 +498,7 @@ function go(view){
     else{renderTerrain();}
   }
   else if(view==='facturation')renderFacturation();
+  else if(view==='frelons')renderFrelons();
   else renderRapports();
 }
 
@@ -2415,7 +2422,7 @@ document.addEventListener('click', function(e){
 
 // Navigation par swipe
 var swipeStartX=0,swipeStartY=0;
-var views=['clients','terrain','rapports','facturation'];
+var views=['clients','terrain','rapports','facturation','frelons'];
 document.addEventListener('touchstart',function(e){
   swipeStartX=e.touches[0].clientX;
   swipeStartY=e.touches[0].clientY;
@@ -2428,6 +2435,210 @@ document.addEventListener('touchend',function(e){
   if(dx<0&&idx<views.length-1)go(views[idx+1]);
   else if(dx>0&&idx>0)go(views[idx-1]);
 },{passive:true});
+
+
+// ═══════════════════════════════════════════
+// FRELONS ASIATIQUES — SUIVI SIGNALEMENTS
+// ═══════════════════════════════════════════
+var frelonFilter='';var frelonSearch='';
+
+function renderFrelons(){
+  var total=signalements.length;
+  var aFaire=signalements.filter(function(s){return s.statut_facture==='a_faire';}).length;
+  var envoyee=signalements.filter(function(s){return s.statut_facture==='envoyee';}).length;
+  var nonDef=signalements.filter(function(s){return !s.statut_facture||s.statut_facture==='';}).length;
+
+  var h='';
+  document.getElementById('topbar-act').innerHTML='<button class="btn btn-g btn-sm" id="btn-import-frelon" onclick="triggerImportFrelon()">📥 Import CSV</button>';
+  setTimeout(function(){
+    var inp=document.createElement('input');
+    inp.type='file';inp.accept='.csv';inp.id='frelons-csv-input';inp.style.display='none';
+    document.body.appendChild(inp);
+    inp.addEventListener('change',function(){importFretonCSV(this);});
+  },50);
+
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:18px">';
+  h+='<div style="background:#fff;border:1px solid var(--bord);border-radius:12px;padding:12px 14px"><div style="font-size:10px;color:var(--tx3);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Signalements</div><div style="font-family:Bebas Neue,sans-serif;font-size:28px;color:var(--tx)">'+total+'</div></div>';
+  h+='<div style="background:'+(aFaire>0?'#fffaf0':'#fff')+';border:1px solid '+(aFaire>0?'rgba(249,115,22,.3)':'var(--bord)')+';border-radius:12px;padding:12px 14px"><div style="font-size:10px;color:var(--tx3);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">À facturer</div><div style="font-family:Bebas Neue,sans-serif;font-size:28px;color:'+(aFaire>0?'var(--ora)':'var(--tx3)')+'">'+aFaire+'</div></div>';
+  h+='<div style="background:'+(envoyee>0?'#f0fdf5':'#fff')+';border:1px solid '+(envoyee>0?'rgba(46,168,74,.3)':'var(--bord)')+';border-radius:12px;padding:12px 14px"><div style="font-size:10px;color:var(--tx3);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Envoyées</div><div style="font-family:Bebas Neue,sans-serif;font-size:28px;color:'+(envoyee>0?'var(--grn)':'var(--tx3)')+'">'+envoyee+'</div></div>';
+  h+='<div style="background:#fff;border:1px solid var(--bord);border-radius:12px;padding:12px 14px"><div style="font-size:10px;color:var(--tx3);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Non défini</div><div style="font-family:Bebas Neue,sans-serif;font-size:28px;color:var(--tx3)">'+nonDef+'</div></div>';
+  h+='</div>';
+
+  h+='<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">';
+  h+='<input class="fi" id="frelon-search" placeholder="🔍 N°, nom, ville…" value="'+frelonSearch+'" oninput="frelonSearch=this.value;renderFreloTable()" style="max-width:220px;flex:1">';
+  h+='<select class="fs" id="frelon-filter" onchange="frelonFilter=this.value;renderFreloTable()" style="max-width:180px">';
+  h+='<option value="" '+(frelonFilter===''?'selected':'')+'>Tous les statuts</option>';
+  h+='<option value="a_faire" '+(frelonFilter==='a_faire'?'selected':'')+'>À faire</option>';
+  h+='<option value="envoyee" '+(frelonFilter==='envoyee'?'selected':'')+'>Envoyée</option>';
+  h+='<option value="non_concerne" '+(frelonFilter==='non_concerne'?'selected':'')+'>Non concerné</option>';
+  h+='</select>';
+  h+='<button class="btn btn-g btn-sm" onclick="exportFrelonsCSV()">💾 Export suivi</button>';
+  h+='</div>';
+
+  h+='<div class="tbl-wrap"><table class="tbl" style="table-layout:fixed;width:100%">';
+  h+='<thead><tr>';
+  h+='<th style="width:70px">N°</th>';
+  h+='<th style="width:140px">Nom</th>';
+  h+='<th style="width:180px">Adresse</th>';
+  h+='<th style="width:95px">Intervention</th>';
+  h+='<th style="width:130px">Statut facture</th>';
+  h+='<th style="width:110px">N° facture</th>';
+  h+='<th style="width:60px"></th>';
+  h+='</tr></thead>';
+  h+='<tbody id="frelon-tbody"></tbody></table></div>';
+
+  document.getElementById('page').innerHTML=h;
+  renderFreloTable();
+}
+
+function triggerImportFrelon(){
+  var inp=document.getElementById('frelons-csv-input');
+  if(inp){inp.click();}
+}
+
+function renderFreloTable(){
+  var search=(frelonSearch||'').toLowerCase();
+  var filter=frelonFilter||'';
+  var rows=signalements.filter(function(s){
+    if(filter){
+      var sf=s.statut_facture||'';
+      if(filter==='a_faire'&&sf!=='a_faire')return false;
+      if(filter==='envoyee'&&sf!=='envoyee')return false;
+      if(filter==='non_concerne'&&sf!=='non_concerne')return false;
+    }
+    if(search){
+      var hay=((s.num_signalement||'')+' '+(s.nom||'')+' '+(s.prenom||'')+' '+(s.adresse||'')+' '+(s.cc||'')).toLowerCase();
+      if(!hay.includes(search))return false;
+    }
+    return true;
+  });
+
+  var tbody=document.getElementById('frelon-tbody');
+  if(!tbody)return;
+  if(rows.length===0){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--tx3)">Aucun résultat — importez votre CSV</td></tr>';return;}
+
+  var h='';
+  rows.forEach(function(s,i){
+    var sf=s.statut_facture||'';
+    var bg=i%2===0?'':'background:rgba(0,0,0,.015)';
+    var sfStyle='';
+    if(sf==='a_faire')sfStyle='background:rgba(249,115,22,.1);color:var(--ora);border:1px solid rgba(249,115,22,.25)';
+    else if(sf==='envoyee')sfStyle='background:rgba(46,168,74,.1);color:var(--grn);border:1px solid rgba(46,168,74,.25)';
+    else sfStyle='background:var(--surf2);color:var(--tx3);border:1px solid var(--bord)';
+    h+='<tr style="'+bg+';border-bottom:1px solid var(--bord)">';
+    h+='<td style="font-weight:700;font-family:DM Mono,monospace;font-size:12px">'+(s.num_signalement||'')+'</td>';
+    h+='<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px">'+(s.prenom||'')+' '+(s.nom||'')+'</td>';
+    h+='<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--tx2)">'+(s.adresse||'')+'</td>';
+    h+='<td style="font-size:12px;color:var(--tx2)">'+(s.date_intervention||'—')+'</td>';
+    h+='<td><select style="font-size:12px;padding:3px 6px;border-radius:7px;'+sfStyle+';width:100%;font-family:DM Sans,sans-serif" onchange="updateFrelon('+s.id+',this.value)">';
+    h+='<option value="" '+(sf===''?'selected':'')+'>—</option>';
+    h+='<option value="a_faire" '+(sf==='a_faire'?'selected':'')+'>🟠 À faire</option>';
+    h+='<option value="envoyee" '+(sf==='envoyee'?'selected':'')+'>✅ Envoyée</option>';
+    h+='<option value="non_concerne" '+(sf==='non_concerne'?'selected':'')+'>— Non concerné</option>';
+    h+='</select></td>';
+    h+='<td><input type="text" id="nf_'+s.id+'" value="'+(s.num_facture||'')+'" placeholder="F2025-001" class="fi" style="font-size:12px;padding:4px 8px;height:auto" onkeydown="if(event.key===\'Enter\')saveFrelon('+s.id+')"></td>';
+    h+='<td style="text-align:center"><button class="btn btn-g btn-xs" onclick="saveFrelon('+s.id+')" title="Sauvegarder">💾</button></td>';
+    h+='</tr>';
+  });
+  tbody.innerHTML=h;
+}
+
+function updateFrelon(id,val){
+  var s=signalements.find(function(x){return x.id===id;});
+  if(!s)return;
+  s.statut_facture=val;
+  db.from('signalements_frelons').update({statut_facture:val}).eq('id',id).then(function(){});
+  renderFreloTable();
+}
+
+function saveFrelon(id){
+  var s=signalements.find(function(x){return x.id===id;});
+  if(!s)return;
+  var inp=document.getElementById('nf_'+id);
+  var nf=inp?inp.value.trim():'';
+  s.num_facture=nf;
+  db.from('signalements_frelons').update({num_facture:nf,statut_facture:s.statut_facture||''}).eq('id',id).then(function(){
+    toast('✓ Sauvegardé');
+  });
+}
+
+function importFretonCSV(input){
+  var file=input.files[0];if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var text=e.target.result.replace(/^\uFEFF/,'');
+    var lines=text.split('\n').filter(function(l){return l.trim();});
+    if(lines.length<2){toast('⚠️ CSV vide',true);return;}
+    var headers=splitSemiCSV(lines[0]);
+    var iNum=headers.findIndex(function(h){return h.trim()==='N°';});
+    var iPrenom=headers.findIndex(function(h){return h.includes('Prénom')&&!h.includes('Propriétaire');});
+    var iNom=headers.findIndex(function(h){return h.trim()==='Nom';});
+    var iAddr=headers.findIndex(function(h){return h.includes('Adresse');});
+    var iDate=headers.findIndex(function(h){return h.includes("Date d'intervention");});
+    var iCC=headers.findIndex(function(h){return h.includes('communes')||h.includes('Communauté');});
+
+    var toInsert=[];
+    for(var i=1;i<lines.length;i++){
+      var cols=splitSemiCSV(lines[i]);
+      var num=iNum>=0?(cols[iNum]||'').trim():'';
+      if(!num)continue;
+      var exists=signalements.find(function(s){return s.num_signalement===num;});
+      if(exists)continue;
+      toInsert.push({
+        num_signalement:num,
+        prenom:iPrenom>=0?(cols[iPrenom]||'').trim():'',
+        nom:iNom>=0?(cols[iNom]||'').trim():'',
+        adresse:iAddr>=0?(cols[iAddr]||'').trim():'',
+        date_intervention:iDate>=0?freloFmtDate(cols[iDate]||''):'',
+        cc:iCC>=0?(cols[iCC]||'').trim():'',
+        statut_facture:'',
+        num_facture:''
+      });
+    }
+    if(toInsert.length===0){toast('Aucun nouveau signalement à importer');renderFrelons();return;}
+    syncOn();
+    db.from('signalements_frelons').insert(toInsert).select().then(function(r){
+      syncOff();
+      if(r.error){toast('⚠️ Erreur : '+r.error.message,true);return;}
+      (r.data||[]).forEach(function(row){signalements.push(row);});
+      toast('✅ '+toInsert.length+' signalement(s) importé(s)');
+      renderFrelons();
+    });
+  };
+  reader.readAsText(file,'UTF-8');
+}
+
+function splitSemiCSV(line){
+  var res=[],cur='',inQ=false;
+  for(var i=0;i<line.length;i++){
+    var c=line[i];
+    if(c==='"'){inQ=!inQ;}
+    else if(c===';'&&!inQ){res.push(cur.trim().replace(/^"|"$/g,''));cur='';}
+    else{cur+=c;}
+  }
+  res.push(cur.trim().replace(/^"|"$/g,''));
+  return res;
+}
+
+function freloFmtDate(d){
+  if(!d)return'';
+  var m=d.match(/(\d{2}) (\w+) (\d{4})/);
+  if(!m)return'';
+  var mo={Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+  return m[1]+'/'+(mo[m[2]]||'??')+'/'+m[3];
+}
+
+function exportFrelonsCSV(){
+  if(!signalements.length)return;
+  var sl={'a_faire':'À faire','envoyee':'Envoyée','non_concerne':'Non concerné','':"—"};
+  var csv='N°;Prénom;Nom;Adresse;Date intervention;Statut facture;N° facture\n';
+  signalements.forEach(function(s){
+    csv+=(s.num_signalement||'')+';'+(s.prenom||'')+';'+(s.nom||'')+';"'+(s.adresse||'')+'";'+(s.date_intervention||'')+';'+(sl[s.statut_facture||'']||'—')+';'+(s.num_facture||'')+'\n';
+  });
+  var blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='suivi_factures_frelons.csv';a.click();
+  toast('💾 Export téléchargé');
+}
 
 async function init(){
   try{
