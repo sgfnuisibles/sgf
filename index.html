@@ -2480,8 +2480,10 @@ function renderFrelons(){
   h+='<th style="width:70px">N°</th>';
   h+='<th style="width:140px">Nom</th>';
   h+='<th style="width:180px">Adresse</th>';
-  h+='<th style="width:95px">Intervention</th>';
-  h+='<th style="width:130px">Statut facture</th>';
+  h+='<th style="width:75px">Intervention</th>';
+  h+='<th style="width:55px">Hauteur</th>';
+  h+='<th style="width:60px">Prix</th>';
+  h+='<th style="width:120px">Statut facture</th>';
   h+='<th style="width:110px">N° facture</th>';
   h+='<th style="width:60px"></th>';
   h+='</tr></thead>';
@@ -2530,6 +2532,11 @@ function renderFreloTable(){
     h+='<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px">'+(s.prenom||'')+' '+(s.nom||'')+'</td>';
     h+='<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--tx2)">'+(s.adresse||'')+'</td>';
     h+='<td style="font-size:12px;color:var(--tx2)">'+(s.date_intervention||'—')+'</td>';
+    var hVal=s.hauteur!==null&&s.hauteur!==undefined?s.hauteur+'m':'—';
+    var pVal=frelon_prix(s.hauteur);
+    var pColor=s.hauteur<=3?'var(--grn)':s.hauteur<=9?'var(--blu)':s.hauteur<=20?'var(--yel)':'var(--acc)';
+    h+='<td style="font-size:12px;color:var(--tx2);text-align:center">'+hVal+'</td>';
+    h+='<td style="font-size:12px;font-weight:700;color:'+pColor+';text-align:center">'+pVal+'</td>';
     h+='<td><select style="font-size:12px;padding:3px 6px;border-radius:7px;'+sfStyle+';width:100%;font-family:DM Sans,sans-serif" onchange="updateFrelon('+s.id+',this.value)">';
     h+='<option value="" '+(sf===''?'selected':'')+'>—</option>';
     h+='<option value="a_faire" '+(sf==='a_faire'?'selected':'')+'>🟠 À faire</option>';
@@ -2597,6 +2604,7 @@ function importFretonCSV(input){
     var iAddr=headers.findIndex(function(h){return h.includes('Adresse');});
     var iDate=headers.findIndex(function(h){return h.includes("Date d'intervention");});
     var iCC=headers.findIndex(function(h){return h.includes('communes')||h.includes('Communauté');});
+    var iHaut=headers.findIndex(function(h){return h.includes('hauteur');});
 
     var toInsert=[];
     for(var i=1;i<rows.length;i++){
@@ -2612,6 +2620,7 @@ function importFretonCSV(input){
         adresse:iAddr>=0?(cols[iAddr]||'').trim():'',
         date_intervention:iDate>=0?freloFmtDate(cols[iDate]||''):'',
         cc:iCC>=0?(cols[iCC]||'').trim():'',
+        hauteur:iHaut>=0?parseFloat(cols[iHaut]||'')||null:null,
         statut_facture:'',
         num_facture:''
       });
@@ -2627,6 +2636,18 @@ function importFretonCSV(input){
     });
   };
   reader.readAsText(file,'UTF-8');
+}
+
+
+function frelon_prix(h){
+  if(h===null||h===undefined||h==='')return'—';
+  h=parseFloat(h);
+  if(isNaN(h))return'—';
+  if(h<=3)return'80€';
+  if(h<=9)return'100€';
+  if(h<=20)return'140€';
+  if(h<=30)return'180€';
+  return'180€+';
 }
 
 function freloFmtDate(d){
