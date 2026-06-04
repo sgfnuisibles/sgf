@@ -1745,9 +1745,9 @@ function exportPDF(passageId){
   var pl={placebo:'Placebo',toxique:'Toxique',capture:'Capture',aucun:'Aucun'};
   var sl={sain:'Sain',consomme:'Consommé',realimente:'Ré-alimenté',manquant:'Manquant',controle:'Contrôlé'};
 
-  cPlans.forEach(function(plan){
+  // Rendu plans avec chargement image asynchrone
+  function renderOnePlan(plan, onDone){
     doc.addPage();
-    // Header
     doc.setFillColor(230,48,48);doc.rect(0,0,W,10,'F');
     doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(255,255,255);
     doc.text('Plan — '+plan.nom,M,7);
@@ -1756,8 +1756,6 @@ function exportPDF(passageId){
 
     var planPostes=gPlanPostes(plan.id);
     var imgW=W-M*2;
-
-    // Canvas: plan + heatmap + pins
     var cv=document.createElement('canvas');
     var drawImg=document.querySelector('#plan-box img');
     var ratio=0.65;
@@ -1766,99 +1764,116 @@ function exportPDF(passageId){
     }
     cv.width=900;cv.height=Math.round(900*ratio);
     var ctx=cv.getContext('2d');
-    // White bg
-    ctx.fillStyle='#f8f8f8';ctx.fillRect(0,0,cv.width,cv.height);
-    // Draw plan
-    try{
-      var src=plan.image_data;
-      var tmpImg=new Image();tmpImg.src=src;
-      if(tmpImg.complete&&tmpImg.naturalWidth>0){ctx.drawImage(tmpImg,0,0,cv.width,cv.height);}
-    }catch(e){}
-    // Heatmap
-    planPostes.forEach(function(p){
-      var r=res.find(function(x){return x.poste_id===p.id;});
-      var intensity=0;var color=[100,100,100];
-      if(r){
-        if(r.statut==='consomme'){color=[249,115,22];intensity=0.75;}
-        else if(r.statut==='manquant'){color=[230,48,48];intensity=0.8;}
-        else if(r.statut==='realimente'){color=[59,130,246];intensity=0.5;}
-        else if(r.statut==='sain'){color=[46,168,74];intensity=0.2;}
-        if(r.conso)intensity=Math.min(1,intensity+parseInt(r.conso||0)/100*0.3);
-      }
-      prevPassages.forEach(function(prev){
-        if(prev.id===passageId)return;
-        var pr=gPosteRes(prev.id,p.id);
-        if(pr&&pr.statut==='actif')intensity=Math.min(1,intensity+0.08);
-      });
-      if(intensity<0.08)return;
-      var px=p.x/100*cv.width;var py=p.y/100*cv.height;
-      var radius=Math.min(cv.width,cv.height)*0.09;
-      var grad=ctx.createRadialGradient(px,py,0,px,py,radius);
-      grad.addColorStop(0,'rgba('+color[0]+','+color[1]+','+color[2]+','+intensity*0.7+')');
-      grad.addColorStop(0.5,'rgba('+color[0]+','+color[1]+','+color[2]+','+intensity*0.35+')');
-      grad.addColorStop(1,'rgba('+color[0]+','+color[1]+','+color[2]+',0)');
-      ctx.beginPath();ctx.arc(px,py,radius,0,Math.PI*2);ctx.fillStyle=grad;ctx.fill();
-    });
-    // Pins
-    planPostes.forEach(function(p){
-      var r=res.find(function(x){return x.poste_id===p.id;});
-      var s=r?r.statut:null;
-      var cols={sain:[46,168,74],consomme:[249,115,22],realimente:[59,130,246],manquant:[230,48,48],controle:[138,148,136]};
-      var fc=cols[s]||[100,100,100];
-      var px=p.x/100*cv.width;var py=p.y/100*cv.height;
-      var rad=Math.max(16,cv.width*0.02);
-      ctx.shadowColor='rgba(0,0,0,0.35)';ctx.shadowBlur=8;ctx.shadowOffsetY=3;
-      ctx.beginPath();ctx.arc(px,py,rad,0,Math.PI*2);
-      ctx.fillStyle='rgb('+fc[0]+','+fc[1]+','+fc[2]+')';ctx.fill();
-      ctx.strokeStyle='#ffffff';ctx.lineWidth=3;ctx.stroke();
-      ctx.shadowColor='transparent';
-      ctx.fillStyle='#ffffff';
-      ctx.font='bold '+Math.round(rad*0.75)+'px Arial';
-      ctx.textAlign='center';ctx.textBaseline='middle';
-      var lbl=(pt(p.type_id)||{label:'?'}).label.substring(0,2).toUpperCase();
-      ctx.fillText(lbl,px,py);
-    });
 
-    // Add to PDF
-    var pdfH=Math.min(145,Math.round(imgW*ratio));
-    try{doc.addImage(cv.toDataURL('image/jpeg',0.9),'JPEG',M,13,imgW,pdfH);}catch(e){}
-
-    var ly=13+pdfH+5;
-    // Legend
-    [{l:'Sain',c:[46,168,74]},{l:'Consommé',c:[230,48,48]},{l:'Ré-alimenté',c:[249,115,22]},{l:'Absent',c:[150,150,150]},{l:'Non vérifié',c:[100,100,100]}].forEach(function(li,i){
-      doc.setFillColor(li.c[0],li.c[1],li.c[2]);doc.circle(M+i*28+2,ly,2,'F');
-      doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(80,80,80);
-      doc.text(li.l,M+i*28+5.5,ly+0.8);
-    });
-    doc.setFont('helvetica','italic');doc.setFontSize(6.5);doc.setTextColor(180,180,180);
-    doc.text('Heatmap : activité cumulée sur les passages précédents',W-M,ly+0.8,{align:'right'});
-    ly+=7;
-
-    // Poste table
-    if(planPostes.length>0){
-      var pRows=planPostes.map(function(p){
+    function drawOnCanvas(){
+      // Heatmap
+      planPostes.forEach(function(p){
         var r=res.find(function(x){return x.poste_id===p.id;});
-        var sub='—';
-        if(r&&r.produit==='toxique')sub=subl[r.substance]||r.substance||'—';
-        return[p.label,p.zone||'—',r?sl[r.statut]||'—':'Non vér.',r&&r.produit?pl[r.produit]||r.produit:'—',sub,r&&r.conso?r.conso+'%':'—',r?r.note||'':''];
+        var intensity=0;var color=[100,100,100];
+        if(r){
+          if(r.statut==='consomme'){color=[249,115,22];intensity=0.75;}
+          else if(r.statut==='manquant'){color=[230,48,48];intensity=0.8;}
+          else if(r.statut==='realimente'){color=[59,130,246];intensity=0.5;}
+          else if(r.statut==='sain'){color=[46,168,74];intensity=0.2;}
+          if(r.conso)intensity=Math.min(1,intensity+parseInt(r.conso||0)/100*0.3);
+        }
+        prevPassages.forEach(function(prev){
+          if(prev.id===passageId)return;
+          var pr=gPosteRes(prev.id,p.id);
+          if(pr&&pr.statut==='actif')intensity=Math.min(1,intensity+0.08);
+        });
+        if(intensity<0.08)return;
+        var px=p.x/100*cv.width;var py=p.y/100*cv.height;
+        var radius=Math.min(cv.width,cv.height)*0.09;
+        var grad=ctx.createRadialGradient(px,py,0,px,py,radius);
+        grad.addColorStop(0,'rgba('+color[0]+','+color[1]+','+color[2]+','+intensity*0.7+')');
+        grad.addColorStop(0.5,'rgba('+color[0]+','+color[1]+','+color[2]+','+intensity*0.35+')');
+        grad.addColorStop(1,'rgba('+color[0]+','+color[1]+','+color[2]+',0)');
+        ctx.beginPath();ctx.arc(px,py,radius,0,Math.PI*2);ctx.fillStyle=grad;ctx.fill();
       });
-      doc.autoTable({startY:ly,
-        head:[['Poste','Zone','Statut','Produit','Substance','Conso','Note']],
-        body:pRows,theme:'plain',
-        styles:{font:'helvetica',fontSize:7.5,cellPadding:{top:2.5,right:2,bottom:2.5,left:2},textColor:[40,40,40],fillColor:[255,255,255],lineColor:[220,220,220],lineWidth:0.3},
-        headStyles:{fillColor:[248,248,248],textColor:[120,120,120],fontStyle:'bold',fontSize:7},
-        alternateRowStyles:{fillColor:[252,252,252]},
-        columnStyles:{0:{cellWidth:22},1:{cellWidth:22},2:{cellWidth:22},3:{cellWidth:20},4:{cellWidth:26},5:{cellWidth:14},6:{cellWidth:60}},
-        didDrawCell:function(data){
-          if(data.section==='body'&&data.column.index===2){
-            var c2={Sain:[46,168,74],Consomme:[249,115,22],'Re-alimente':[59,130,246],Manquant:[230,48,48],Controle:[138,148,136],'Consommé':[249,115,22],'Ré-alimenté':[59,130,246]};
-            var col=c2[data.cell.raw];
-            if(col){doc.setTextColor(col[0],col[1],col[2]);doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.text(data.cell.raw,data.cell.x+data.cell.padding('left'),data.cell.y+data.cell.height/2+2.5);}
-          }
-        },
-        margin:{left:M,right:M}});
+      // Pins
+      planPostes.forEach(function(p){
+        var r=res.find(function(x){return x.poste_id===p.id;});
+        var s=r?r.statut:null;
+        var cols={sain:[46,168,74],consomme:[249,115,22],realimente:[59,130,246],manquant:[230,48,48],controle:[138,148,136]};
+        var fc=cols[s]||[100,100,100];
+        var px=p.x/100*cv.width;var py=p.y/100*cv.height;
+        var rad=Math.max(16,cv.width*0.02);
+        ctx.shadowColor='rgba(0,0,0,0.35)';ctx.shadowBlur=8;ctx.shadowOffsetY=3;
+        ctx.beginPath();ctx.arc(px,py,rad,0,Math.PI*2);
+        ctx.fillStyle='rgb('+fc[0]+','+fc[1]+','+fc[2]+')';ctx.fill();
+        ctx.strokeStyle='#ffffff';ctx.lineWidth=3;ctx.stroke();
+        ctx.shadowColor='transparent';
+        ctx.fillStyle='#ffffff';
+        ctx.font='bold '+Math.round(rad*0.75)+'px Arial';
+        ctx.textAlign='center';ctx.textBaseline='middle';
+        var lbl=(pt(p.type_id)||{label:'?'}).label.substring(0,2).toUpperCase();
+        ctx.fillText(lbl,px,py);
+      });
+      // Add to PDF
+      var pdfH=Math.min(145,Math.round(imgW*ratio));
+      try{doc.addImage(cv.toDataURL('image/jpeg',0.9),'JPEG',M,13,imgW,pdfH);}catch(e){}
+      var ly=13+pdfH+5;
+      [{l:'Sain',c:[46,168,74]},{l:'Consommé',c:[230,48,48]},{l:'Ré-alimenté',c:[249,115,22]},{l:'Absent',c:[150,150,150]},{l:'Non vérifié',c:[100,100,100]}].forEach(function(li,i){
+        doc.setFillColor(li.c[0],li.c[1],li.c[2]);doc.circle(M+i*28+2,ly,2,'F');
+        doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(80,80,80);
+        doc.text(li.l,M+i*28+5.5,ly+0.8);
+      });
+      doc.setFont('helvetica','italic');doc.setFontSize(6.5);doc.setTextColor(180,180,180);
+      doc.text('Heatmap : activité cumulée sur les passages précédents',W-M,ly+0.8,{align:'right'});
+      ly+=7;
+      if(planPostes.length>0){
+        var pRows=planPostes.map(function(p){
+          var r=res.find(function(x){return x.poste_id===p.id;});
+          var sub='—';
+          if(r&&r.produit==='toxique')sub=subl[r.substance]||r.substance||'—';
+          return[p.label,p.zone||'—',r?sl[r.statut]||'—':'Non vér.',r&&r.produit?pl[r.produit]||r.produit:'—',sub,r&&r.conso?r.conso+'%':'—',r?r.note||'':''];
+        });
+        doc.autoTable({startY:ly,
+          head:[['Poste','Zone','Statut','Produit','Substance','Conso','Note']],
+          body:pRows,theme:'plain',
+          styles:{font:'helvetica',fontSize:7.5,cellPadding:{top:2.5,right:2,bottom:2.5,left:2},textColor:[40,40,40],fillColor:[255,255,255],lineColor:[220,220,220],lineWidth:0.3},
+          headStyles:{fillColor:[248,248,248],textColor:[120,120,120],fontStyle:'bold',fontSize:7},
+          alternateRowStyles:{fillColor:[252,252,252]},
+          columnStyles:{0:{cellWidth:22},1:{cellWidth:22},2:{cellWidth:22},3:{cellWidth:20},4:{cellWidth:26},5:{cellWidth:14},6:{cellWidth:60}},
+          didDrawCell:function(data){
+            if(data.section==='body'&&data.column.index===2){
+              var c2={Sain:[46,168,74],Consomme:[249,115,22],'Re-alimente':[59,130,246],Manquant:[230,48,48],Controle:[138,148,136],'Consommé':[249,115,22],'Ré-alimenté':[59,130,246]};
+              var col=c2[data.cell.raw];
+              if(col){doc.setTextColor(col[0],col[1],col[2]);doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.text(data.cell.raw,data.cell.x+data.cell.padding('left'),data.cell.y+data.cell.height/2+2.5);}
+            }
+          },
+          margin:{left:M,right:M}});
+      }
+      onDone();
     }
-  });
+
+    // Charger l'image du plan de façon asynchrone
+    if(plan.image_data){
+      var tmpImg=new Image();
+      tmpImg.onload=function(){
+        ctx.fillStyle='#f8f8f8';ctx.fillRect(0,0,cv.width,cv.height);
+        ctx.drawImage(tmpImg,0,0,cv.width,cv.height);
+        drawOnCanvas();
+      };
+      tmpImg.onerror=function(){
+        ctx.fillStyle='#f8f8f8';ctx.fillRect(0,0,cv.width,cv.height);
+        drawOnCanvas();
+      };
+      tmpImg.src=plan.image_data;
+    } else {
+      ctx.fillStyle='#f8f8f8';ctx.fillRect(0,0,cv.width,cv.height);
+      drawOnCanvas();
+    }
+  }
+
+  // Enchaîner les plans un par un
+  function renderPlansSequential(idx, onAllDone){
+    if(idx>=cPlans.length){onAllDone();return;}
+    renderOnePlan(cPlans[idx],function(){renderPlansSequential(idx+1,onAllDone);});
+  }
+
+  renderPlansSequential(0, function(){
 
   // ═══════════════════════════
   // PAGE DÉTAIL POSTES
@@ -1984,6 +1999,8 @@ function exportPDF(passageId){
 
   doc.save('rapport-SGF-'+c.nom.replace(/\s+/g,'-')+'-'+pa.date_passage+'.pdf');
   toast('PDF téléchargé !');
+
+  }); // fin renderPlansSequential callback
 }
 function emailPassage(passageId){
   var pa=passages.find(function(p){return p.id===passageId;});if(!pa)return;
