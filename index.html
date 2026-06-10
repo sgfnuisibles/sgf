@@ -2131,22 +2131,24 @@ function emailPassage(passageId){
   var cContacts=contacts.filter(function(x){return x.client_id===pa.client_id;});
   var to=(cContacts.find(function(x){return x.principal;})||cContacts[0]||{email:''}).email||c.email||'';
   var res=gPassRes(passageId);
-  var ok=res.filter(function(r){return r.statut==='ok';}).length;
-  var actif=res.filter(function(r){return r.statut==='actif';}).length;
-  var absent=res.filter(function(r){return r.statut==='absent';}).length;
-  var resConso=res.filter(function(r){return r.conso;});
-  var consoMoy=resConso.length?Math.round(resConso.reduce(function(s,r){return s+parseInt(r.conso||0);},0)/resConso.length):0;
+  var isMoustique2=(ctr.nom||'').toLowerCase().includes('moustique');
   var subject='Rapport de visite - '+c.nom+' - '+fdate(pa.date_passage).replace(/\//g,'-');
   var lines=[
     'Bonjour,','',
     'Veuillez trouver en pièce jointe le rapport de notre visite du '+fdate(pa.date_passage)+'.',
-    '','Contrat : '+ctr.nom,'',
-    'Résumé :',
-    '- Postes OK : '+ok,
-    '- Postes actifs : '+actif,
-    '- Postes absents : '+absent,
-    '- Consommation moyenne : '+consoMoy+'%',''
+    '','Contrat : '+ctr.nom,''
   ];
+  if(isMoustique2){
+    var nbPostes=gContratPostes(pa.contrat_id, pa.date_passage).length;
+    lines.push('Résumé :','- Nombre de postes visités : '+nbPostes,'');
+  } else {
+    var ok=res.filter(function(r){return r.statut==='ok';}).length;
+    var actif=res.filter(function(r){return r.statut==='actif';}).length;
+    var absent=res.filter(function(r){return r.statut==='absent';}).length;
+    var resConso=res.filter(function(r){return r.conso;});
+    var consoMoy=resConso.length?Math.round(resConso.reduce(function(s,r){return s+parseInt(r.conso||0);},0)/resConso.length):0;
+    lines.push('Résumé :','- Postes OK : '+ok,'- Postes actifs : '+actif,'- Postes absents : '+absent,'- Consommation moyenne : '+consoMoy+'%','');
+  }
   if(pa.notes)lines.push('Notes : '+pa.notes,'');
   lines.push('Cordialement,','Christophe Pons','SGF Nuisibles','contact@sgfnuisibles.fr');
   // Télécharger le PDF d'abord
