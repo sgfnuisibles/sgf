@@ -1651,14 +1651,17 @@ function exportPDF(passageId){
     }
   }
 
-  var doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   var W=210,M=15;
   var isMoustique=(ctr.nom||'').toLowerCase().includes('moustique');
+  var doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
 
   // ═══════════════════════════
   // PAGE 1 — EN-TÊTE + RÉSUMÉ (sauf moustiques)
   // ═══════════════════════════
-  if(!isMoustique){
+  if(isMoustique){
+    // Pour moustiques : supprimer la page vide créée par défaut
+    // On va juste ne rien écrire dessus et la supprimer via deletePage après
+  } else {
   // Bande rouge haut
   doc.setFillColor(230,48,48);doc.rect(0,0,W,35,'F');
   // Logo
@@ -1793,6 +1796,11 @@ function exportPDF(passageId){
   }
 
   } // fin if(!isMoustique) — page de garde
+
+  // Si contrat moustique, supprimer la page 1 vide
+  if(isMoustique && doc.internal.getNumberOfPages()>=1){
+    doc.deletePage(1);
+  }
 
   // ═══════════════════════════
   // PAGES PLANS
@@ -2054,7 +2062,7 @@ function exportPDF(passageId){
       ti.onload=function(){
         try{doc.addImage(item.src,item.src.startsWith('data:image/png')?'PNG':'JPEG',phx,phy,photoW,photoH);}catch(e){}
         doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(80,80,80);
-        doc.text((item.type==='fixe'?'📌 ':'📷 ')+item.label,phx,phy+photoH+3.5);
+        doc.text((item.type==='fixe'?'[fixe] ':'[pass.] ')+item.label,phx,phy+photoH+3.5);
         phcol++;phx+=(photoW+4);
         if(phcol===3){phcol=0;phx=M;phy+=photoH+8;
           if(phy+photoH>280&&rem.length){
