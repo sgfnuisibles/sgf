@@ -1807,7 +1807,9 @@ function exportPDF(passageId){
         ctx.fillStyle='#ffffff';
         ctx.font='bold '+Math.round(rad*0.75)+'px Arial';
         ctx.textAlign='center';ctx.textBaseline='middle';
-        var lbl=(pt(p.type_id)||{label:'?'}).label.substring(0,2).toUpperCase();
+        var lbl=(p.label||((pt(p.type_id)||{label:'?'}).label.substring(0,2))).toUpperCase();
+        var fontSize=lbl.length>4?Math.round(rad*0.5):Math.round(rad*0.75);
+        ctx.font='bold '+fontSize+'px Arial';
         ctx.fillText(lbl,px,py);
       });
       // Add to PDF
