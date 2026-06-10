@@ -402,7 +402,7 @@ const CONSO=[
 ];
 
 // ═══ STATE ═══
-var clients=[],contrats=[],contacts=[],postes=[],plans=[],passages=[],resultats=[],echeancier=[],signalements=[];
+var clients=[],contrats=[],contacts=[],postes=[],plans=[],passages=[],resultats=[],echeancier=[],signalements=[],photosPostes=[];
 var curView='clients',curPassageId=null,curPlanId=null,curContratId=null;
 var placingType=null,openPinId=null,heatmapOn=false;
 var pinDrag={pid:null,moved:false,sx:0,sy:0};
@@ -478,6 +478,10 @@ async function loadAll(){
   setLoad('Signalements frelons…');
   r=await db.from('signalements_frelons').select('*').order('num_signalement',{ascending:false});
   signalements=r.data||[];
+
+  setLoad('Photos postes…');
+  r=await db.from('photos_postes').select('*').order('created_at');
+  photosPostes=r.data||[];
 }
 
 // ═══ NAVIGATION ═══
@@ -931,8 +935,28 @@ function buildPinPopup(pid,passageId,isRO){
     h+='<div class="pp-sec">NOTE</div>';
     h+='<textarea class="pp-note" rows="2" placeholder="Observations..." onchange="setNote('+pid+',this.value,'+passageId+')">'+ note+'</textarea>';
 
-    // Photo
-    h+='<label class="pp-photo-label"><input type="file" accept="image/*" style="display:none" onchange="uploadPinPhoto(event,'+pid+','+passageId+')">'+(p.photo_url?'🔄 Changer la photo':'📷 Ajouter une photo')+'</label>';
+    // Photos multiples
+    h+='<div class="pp-sec">PHOTOS</div>';
+    // Photo fixe du poste
+    if(p.photo_url){
+      h+='<div style="position:relative;margin-bottom:6px">';
+      h+='<img src="'+p.photo_url+'" class="pp-photo">';
+      h+='<span style="position:absolute;top:4px;left:4px;background:rgba(0,0,0,.5);color:#fff;font-size:9px;padding:2px 5px;border-radius:4px">📌 Fixe</span>';
+      h+='</div>';
+    }
+    // Photos de ce passage
+    var passPhotos=photosPostes.filter(function(ph){return ph.poste_id===pid&&ph.passage_id===passageId;});
+    passPhotos.forEach(function(ph){
+      h+='<div style="position:relative;margin-bottom:6px">';
+      h+='<img src="'+ph.image_data+'" class="pp-photo">';
+      h+='<span style="position:absolute;top:4px;left:4px;background:rgba(0,0,0,.5);color:#fff;font-size:9px;padding:2px 5px;border-radius:4px">📷 Passage</span>';
+      h+='<button onclick="deletePassagePhoto('+ph.id+','+pid+','+passageId+')" style="position:absolute;top:4px;right:4px;background:rgba(230,48,48,.8);color:#fff;border:none;border-radius:4px;padding:2px 6px;font-size:10px;cursor:pointer">✕</button>';
+      h+='</div>';
+    });
+    h+='<div style="display:flex;gap:6px;margin-bottom:4px">';
+    h+='<label style="flex:1;text-align:center;cursor:pointer;background:var(--surf2);border:1px solid var(--bord);border-radius:7px;padding:5px;font-size:11px;color:var(--tx3)">📌 Photo fixe<input type="file" accept="image/*" capture="environment" style="display:none" onchange="uploadPinPhoto(event,'+pid+','+passageId+',\'fixe\')"></label>';
+    h+='<label style="flex:1;text-align:center;cursor:pointer;background:var(--surf2);border:1px solid var(--bord);border-radius:7px;padding:5px;font-size:11px;color:var(--tx3)">📷 Photo passage<input type="file" accept="image/*" capture="environment" style="display:none" onchange="addPassagePhoto(event,'+pid+','+passageId+')"></label>';
+    h+='</div>';
     h+='<button onclick="deletePoste('+pid+','+passageId+')" style="margin-top:8px;background:none;border:1px solid rgba(230,48,48,.2);color:var(--acc);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;width:100%">🗑️ Supprimer ce poste du parc</button>';
   } else {
     var sl={ok:'✅ OK',actif:'⚠️ Actif',remplace:'🔄 Remplacé',absent:'❌ Absent'};
@@ -1454,33 +1478,63 @@ function confirmPlan(){
 function cancelPlan(){document.getElementById('cfm-bg').classList.remove('on');pendingPlan={data:null};}
 
 // Photo poste
-function uploadPinPhoto(e,posteId,passageId){
-  var file=e.target.files[0];if(!file)return;
-  toast('⏳ Upload...');
+function compressBase64(file, maxW, quality, cb){
   var reader=new FileReader();
   reader.onload=function(ev){
     var img=new Image();
     img.onload=function(){
-      var r=Math.min(1,1000/img.width);
+      var r=Math.min(1,maxW/img.width);
       var cv=document.createElement('canvas');
       cv.width=Math.round(img.width*r);cv.height=Math.round(img.height*r);
       cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
-      cv.toBlob(function(blob){
-        var fn='poste-'+posteId+'-'+Date.now()+'.jpg';
-        syncOn();
-        db.storage.from('photos-postes').upload(fn,blob,{contentType:'image/jpeg',upsert:true}).then(function(r){
-          if(r.error){syncOff();toast('⚠️ Erreur upload',true);return;}
-          var url=db.storage.from('photos-postes').getPublicUrl(fn).data.publicUrl;
-          var poste=postes.find(function(p){return p.id==posteId;});
-          db.from('postes').update({photo_url:url}).eq('id',posteId).then(function(){
-            if(poste)poste.photo_url=url;syncOff();toast('✓ Photo enregistrée !');openTerrain(passageId);
-          });
-        });
-      },'image/jpeg',0.75);
+      cb(cv.toDataURL('image/jpeg',quality));
     };
     img.src=ev.target.result;
   };
-  reader.readAsDataURL(file);e.target.value='';
+  reader.readAsDataURL(file);
+}
+
+function uploadPinPhoto(e,posteId,passageId,type){
+  var file=e.target.files[0];if(!file)return;
+  e.target.value='';
+  toast('⏳ Compression...');
+  compressBase64(file,1200,0.75,function(b64){
+    syncOn();
+    // Photo fixe : mise à jour du champ photo_url du poste
+    var poste=postes.find(function(p){return p.id==posteId;});
+    db.from('postes').update({photo_url:b64}).eq('id',posteId).then(function(){
+      if(poste)poste.photo_url=b64;
+      syncOff();toast('✓ Photo fixe enregistrée !');openTerrain(passageId);
+    });
+  });
+}
+
+function addPassagePhoto(e,posteId,passageId){
+  var file=e.target.files[0];if(!file)return;
+  e.target.value='';
+  toast('⏳ Compression...');
+  compressBase64(file,1200,0.75,function(b64){
+    syncOn();
+    db.from('photos_postes').insert({
+      poste_id:posteId,
+      passage_id:passageId,
+      type:'passage',
+      image_data:b64,
+      legende:''
+    }).select().then(function(r){
+      syncOff();
+      if(r.error){toast('⚠️ Erreur photo',true);return;}
+      (r.data||[]).forEach(function(ph){photosPostes.push(ph);});
+      toast('✓ Photo de passage ajoutée !');openTerrain(passageId);
+    });
+  });
+}
+
+function deletePassagePhoto(photoId,posteId,passageId){
+  db.from('photos_postes').delete().eq('id',photoId).then(function(){
+    photosPostes=photosPostes.filter(function(ph){return ph.id!==photoId;});
+    toast('Photo supprimée');openTerrain(passageId);
+  });
 }
 
 // ═══ HEATMAP ═══
@@ -1599,10 +1653,12 @@ function exportPDF(passageId){
 
   var doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   var W=210,M=15;
+  var isMoustique=(ctr.nom||'').toLowerCase().includes('moustique');
 
   // ═══════════════════════════
-  // PAGE 1 — EN-TÊTE + RÉSUMÉ
+  // PAGE 1 — EN-TÊTE + RÉSUMÉ (sauf moustiques)
   // ═══════════════════════════
+  if(!isMoustique){
   // Bande rouge haut
   doc.setFillColor(230,48,48);doc.rect(0,0,W,35,'F');
   // Logo
@@ -1735,6 +1791,8 @@ function exportPDF(passageId){
     doc.text(doc.splitTextToSize(pa.notes,W-M*2-6),M+3,y+12);
     y+=22;
   }
+
+  } // fin if(!isMoustique) — page de garde
 
   // ═══════════════════════════
   // PAGES PLANS
@@ -1967,6 +2025,56 @@ function exportPDF(passageId){
   });
 
   // ═══════════════════════════
+  // PAGE PHOTOS
+  // ═══════════════════════════
+  var passagePhotos=photosPostes.filter(function(ph){return ph.passage_id===passageId;});
+  var fixedPhotos=allPostes.filter(function(p){return p.photo_url;});
+  var allPhotoItems=[];
+  fixedPhotos.forEach(function(p){allPhotoItems.push({src:p.photo_url,label:p.label,type:'fixe'});});
+  passagePhotos.forEach(function(ph){
+    var poste=postes.find(function(p){return p.id===ph.poste_id;});
+    allPhotoItems.push({src:ph.image_data,label:(poste?poste.label:'Poste'),type:'passage'});
+  });
+
+  function doPhotosAndFinish(items, onDone){
+    if(!items.length){onDone();return;}
+    doc.addPage();
+    doc.setFillColor(230,48,48);doc.rect(0,0,W,10,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(255,255,255);
+    doc.text('Photos — '+c.nom,M,7);
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(255,200,200);
+    doc.text(fdate(pa.date_passage),W-M,7,{align:'right'});
+    var photoW=(W-M*2-8)/3;var photoH=photoW*0.75;
+    var phx=M,phy=14,phcol=0;
+    var rem=items.slice();
+    function nextPhoto(){
+      if(!rem.length){onDone();return;}
+      var item=rem.shift();
+      var ti=new Image();
+      ti.onload=function(){
+        try{doc.addImage(item.src,item.src.startsWith('data:image/png')?'PNG':'JPEG',phx,phy,photoW,photoH);}catch(e){}
+        doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(80,80,80);
+        doc.text((item.type==='fixe'?'📌 ':'📷 ')+item.label,phx,phy+photoH+3.5);
+        phcol++;phx+=(photoW+4);
+        if(phcol===3){phcol=0;phx=M;phy+=photoH+8;
+          if(phy+photoH>280&&rem.length){
+            doc.addPage();
+            doc.setFillColor(230,48,48);doc.rect(0,0,W,10,'F');
+            doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(255,255,255);
+            doc.text('Photos (suite) — '+c.nom,M,7);phy=14;
+          }
+        }
+        nextPhoto();
+      };
+      ti.onerror=function(){nextPhoto();};
+      ti.src=item.src;
+    }
+    nextPhoto();
+  }
+
+  doPhotosAndFinish(allPhotoItems, function(){
+
+  // ═══════════════════════════
   // PAGE SIGNATURE
   // ═══════════════════════════
   if(pa.signature){
@@ -1989,18 +2097,23 @@ function exportPDF(passageId){
     doc.text('Signature'+(pa.signataire?' de '+pa.signataire:' du client'),M,sy);
   }
 
-  // FOOTER
-  var pc=doc.internal.getNumberOfPages();
-  for(var i=1;i<=pc;i++){
-    doc.setPage(i);
-    doc.setFillColor(230,48,48);doc.rect(0,287,W,10,'F');
-    doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(255,200,200);
-    doc.text('SGF Nuisibles — Stop Guêpes-Frelons et Nuisibles — contact@sgfnuisibles.fr',M,293);
-    doc.text('Page '+i+' / '+pc,W-M,293,{align:'right'});
-  }
+  finishPDF2();
 
-  doc.save('rapport-SGF-'+c.nom.replace(/\s+/g,'-')+'-'+pa.date_passage+'.pdf');
-  toast('PDF téléchargé !');
+  }); // fin doPhotosAndFinish callback
+
+  function finishPDF2(){
+    // FOOTER
+    var pc=doc.internal.getNumberOfPages();
+    for(var i=1;i<=pc;i++){
+      doc.setPage(i);
+      doc.setFillColor(230,48,48);doc.rect(0,287,W,10,'F');
+      doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(255,200,200);
+      doc.text('SGF Nuisibles — Stop Guêpes-Frelons et Nuisibles — contact@sgfnuisibles.fr',M,293);
+      doc.text('Page '+i+' / '+pc,W-M,293,{align:'right'});
+    }
+    doc.save('rapport-SGF-'+c.nom.replace(/\s+/g,'-')+'-'+pa.date_passage+'.pdf');
+    toast('PDF téléchargé !');
+  }
 
   }); // fin renderPlansSequential callback
 }
