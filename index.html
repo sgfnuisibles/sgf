@@ -1584,6 +1584,41 @@ function drawHeatmap(passageId){
 }
 
 // ═══ RAPPORTS ═══
+function editDatePassage(passageId, btn){
+  var pa=passages.find(function(p){return p.id===passageId;});if(!pa)return;
+  var td=btn.parentNode;
+  // Créer un input date inline
+  var inp=document.createElement('input');
+  inp.type='date';
+  inp.value=pa.date_passage;
+  inp.className='fi';
+  inp.style.cssText='font-size:12px;padding:3px 6px;height:auto;width:110px;margin-left:6px';
+  inp.onkeydown=function(e){
+    if(e.key==='Enter')confirmDate();
+    if(e.key==='Escape'){td.removeChild(inp);td.removeChild(okBtn);}
+  };
+  var okBtn=document.createElement('button');
+  okBtn.className='btn btn-r btn-xs';
+  okBtn.textContent='✓';
+  okBtn.style.marginLeft='4px';
+  okBtn.onclick=confirmDate;
+  function confirmDate(){
+    var newDate=inp.value;
+    if(!newDate)return;
+    syncOn();
+    db.from('passages').update({date_passage:newDate}).eq('id',passageId).then(function(r){
+      syncOff();
+      if(r.error){toast('⚠️ Erreur',true);return;}
+      pa.date_passage=newDate;
+      toast('✓ Date modifiée');
+      renderRapports();
+    });
+  }
+  td.appendChild(inp);
+  td.appendChild(okBtn);
+  inp.focus();
+}
+
 function renderRapports(){
   document.getElementById('topbar-act').innerHTML='';
   var h='<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Date</th><th>Client</th><th>Contrat</th><th>Sain</th><th>Consommé</th><th>Conso moy.</th><th>Statut</th><th>Actions</th></tr></thead><tbody>';
@@ -1605,7 +1640,11 @@ function renderRapports(){
       h+='<td><span style="color:'+(actif>0?'var(--acc)':'var(--tx3)')+';font-weight:700">'+actif+'</span></td>';
       h+='<td>'+(consoMoy!==null?'<span style="font-family:DM Mono,monospace">'+consoMoy+'%</span>':'—')+'</td>';
       h+=badge(pa.statut==='termine'?'actifcontrat':'encours');
-      h+='<td onclick="event.stopPropagation()" style="white-space:nowrap"><button class="btn btn-g btn-xs" onclick="exportPDF('+pa.id+')" style="margin-right:4px">📄 PDF</button><button class="btn btn-g btn-xs" onclick="emailPassage('+pa.id+')">📧</button></td></tr>';
+      h+='<td onclick="event.stopPropagation()" style="white-space:nowrap">';
+      h+='<button class="btn btn-g btn-xs" onclick="exportPDF('+pa.id+')" style="margin-right:4px">📄 PDF</button>';
+      h+='<button class="btn btn-g btn-xs" onclick="emailPassage('+pa.id+')" style="margin-right:4px">📧</button>';
+      h+='<button class="btn btn-g btn-xs" onclick="editDatePassage('+pa.id+',this)" title="Modifier la date">✏️</button>';
+      h+='</td></tr>';
     });
   }
   h+='</tbody></table></div>';
