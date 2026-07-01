@@ -1882,7 +1882,7 @@ function exportPDF(passageId){
   var prevPassages=gContratPassages(pa.contrat_id).filter(function(p){return p.statut==='termine';}).slice(0,5);
   var subl={difenacoum:'Difenacoum',bromadiolone:'Bromadiolone',brodifacoum:'Brodifacoum',chlorophacinone:'Chlorophacinone'};
   var pl={placebo:'Placebo',toxique:'Toxique',capture:'Capture',aucun:'Aucun'};
-  var sl={sain:'Sain',consomme:'Consommé',realimente:'Ré-alimenté',manquant:'Manquant',controle:'Contrôlé'};
+  var sl={sain:'Sain',ok:'Sain',consomme:'Consommé',actif:'Consommé',realimente:'Ré-alimenté',remplace:'Ré-alimenté',manquant:'Manquant',controle:'Contrôlé',absent:'Absent'};
 
   cPlans.forEach(function(plan){
     doc.addPage();
@@ -1954,7 +1954,7 @@ function exportPDF(passageId){
       ctx.fillStyle='#ffffff';
       ctx.font='bold '+Math.round(rad*0.75)+'px Arial';
       ctx.textAlign='center';ctx.textBaseline='middle';
-      var lbl=(pt(p.type_id)||{label:'?'}).label.substring(0,2).toUpperCase();
+      var lbl=(p.label||'?').toUpperCase();
       ctx.fillText(lbl,px,py);
     });
 
@@ -1990,7 +1990,7 @@ function exportPDF(passageId){
         columnStyles:{0:{cellWidth:22},1:{cellWidth:22},2:{cellWidth:22},3:{cellWidth:20},4:{cellWidth:26},5:{cellWidth:14},6:{cellWidth:60}},
         didDrawCell:function(data){
           if(data.section==='body'&&data.column.index===2){
-            var c2={Sain:[46,168,74],Consomme:[249,115,22],'Re-alimente':[59,130,246],Manquant:[230,48,48],Controle:[138,148,136],'Consommé':[249,115,22],'Ré-alimenté':[59,130,246]};
+            var c2={'Sain':[46,168,74],'Consommé':[230,48,48],'Ré-alimenté':[59,130,246],'Manquant':[230,48,48],'Contrôlé':[138,148,136],'Absent':[150,150,150],'Non vér.':[150,150,150]};
             var col=c2[data.cell.raw];
             if(col){doc.setTextColor(col[0],col[1],col[2]);doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.text(data.cell.raw,data.cell.x+data.cell.padding('left'),data.cell.y+data.cell.height/2+2.5);}
           }
@@ -2032,8 +2032,8 @@ function exportPDF(passageId){
       var cardW=(W-M*2)/2-2;
       if(gy+rowH>280){doc.addPage();gy=14;}
       // Card bg
-      var bgc={ok:[236,253,243],actif:[255,237,237],remplace:[255,247,235],absent:[248,248,248]};
-      var bdc={ok:[46,168,74],actif:[230,48,48],remplace:[249,115,22],absent:[200,200,200]};
+      var bgc={sain:[236,253,243],ok:[236,253,243],consomme:[255,237,237],actif:[255,237,237],realimente:[255,247,235],remplace:[255,247,235],absent:[248,248,248],manquant:[255,237,237]};
+      var bdc={sain:[46,168,74],ok:[46,168,74],consomme:[230,48,48],actif:[230,48,48],realimente:[249,115,22],remplace:[249,115,22],absent:[200,200,200],manquant:[230,48,48]};
       var bg=bgc[s]||[252,252,252];var bd=bdc[s]||[220,220,220];
       doc.setFillColor(bg[0],bg[1],bg[2]);doc.roundedRect(x,gy,cardW,rowH,2,2,'F');
       doc.setDrawColor(bd[0],bd[1],bd[2]);doc.setLineWidth(0.4);doc.roundedRect(x,gy,cardW,rowH,2,2,'S');
@@ -2043,8 +2043,8 @@ function exportPDF(passageId){
       doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(120,120,120);
       doc.text(ptype.label,x+3,gy+11);
       // Statut badge
-      var sc={ok:[46,168,74],actif:[230,48,48],remplace:[249,115,22],absent:[150,150,150]};
-      var sl2={ok:'OK',actif:'ACTIF',remplace:'REMPLACÉ',absent:'ABSENT'};
+      var sc={sain:[46,168,74],ok:[46,168,74],consomme:[230,48,48],actif:[230,48,48],realimente:[59,130,246],remplace:[249,115,22],manquant:[230,48,48],absent:[150,150,150],controle:[138,148,136]};
+      var sl2={sain:'SAIN',ok:'SAIN',consomme:'CONSOMMÉ',actif:'CONSOMMÉ',realimente:'RÉ-ALIM.',remplace:'RÉ-ALIM.',manquant:'MANQUANT',absent:'ABSENT',controle:'CONTRÔLÉ'};
       if(s){
         var sc2=sc[s]||[150,150,150];
         doc.setFillColor(sc2[0],sc2[1],sc2[2]);
