@@ -568,7 +568,7 @@ function addPosteModal(contratId, cid){
 
 function saveNewPoste(contratId, cid){
   var label=document.getElementById('np-label').value.trim();
-  var typeId=parseInt(document.getElementById('np-type').value);
+  var typeId=document.getElementById('np-type').value;
   var zone=document.getElementById('np-zone').value.trim();
   var planId=parseInt(document.getElementById('np-plan').value);
   var ct=contrats.find(function(c){return c.id===contratId;})||{};
