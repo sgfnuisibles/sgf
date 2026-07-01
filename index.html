@@ -1884,9 +1884,9 @@ function exportPDF(passageId){
   var pl={placebo:'Placebo',toxique:'Toxique',capture:'Capture',aucun:'Aucun'};
   var sl={sain:'Sain',ok:'Sain',consomme:'Consommé',actif:'Consommé',realimente:'Ré-alimenté',remplace:'Ré-alimenté',manquant:'Manquant',controle:'Contrôlé',absent:'Absent'};
 
-  cPlans.forEach(function(plan){
+  // Rendu plans async - une fonction par plan
+  function renderOnePlanPDF(plan, onDone){
     doc.addPage();
-    // Header
     doc.setFillColor(230,48,48);doc.rect(0,0,W,10,'F');
     doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(255,255,255);
     doc.text('Plan — '+plan.nom,M,7);
@@ -1895,25 +1895,18 @@ function exportPDF(passageId){
 
     var planPostes=gPlanPostes(plan.id);
     var imgW=W-M*2;
-
-    // Canvas: plan + heatmap + pins
     var cv=document.createElement('canvas');
-    var drawImg=document.querySelector('#plan-box img');
     var ratio=0.65;
-    if(drawImg&&drawImg.naturalWidth>0&&plan.id===curPlanId){
-      ratio=drawImg.naturalHeight/drawImg.naturalWidth;
+    if(plan.image_data){
+      var tmpRatio=new Image();
+      tmpRatio.src=plan.image_data;
+      if(tmpRatio.naturalWidth>0)ratio=tmpRatio.naturalHeight/tmpRatio.naturalWidth;
     }
     cv.width=900;cv.height=Math.round(900*ratio);
     var ctx=cv.getContext('2d');
-    // White bg
-    ctx.fillStyle='#f8f8f8';ctx.fillRect(0,0,cv.width,cv.height);
-    // Draw plan
-    try{
-      var src=plan.image_data;
-      var tmpImg=new Image();tmpImg.src=src;
-      if(tmpImg.complete&&tmpImg.naturalWidth>0){ctx.drawImage(tmpImg,0,0,cv.width,cv.height);}
-    }catch(e){}
-    // Heatmap
+
+    function drawPlanContent(){
+      // Heatmap
     planPostes.forEach(function(p){
       var r=res.find(function(x){return x.poste_id===p.id;});
       var intensity=0;var color=[100,100,100];
@@ -1958,11 +1951,10 @@ function exportPDF(passageId){
       ctx.fillText(lbl,px,py);
     });
 
-    // Add to PDF
-    var pdfH=Math.min(145,Math.round(imgW*ratio));
-    try{doc.addImage(cv.toDataURL('image/jpeg',0.9),'JPEG',M,13,imgW,pdfH);}catch(e){}
-
-    var ly=13+pdfH+5;
+      // Add to PDF
+      var pdfH=Math.min(145,Math.round(imgW*ratio));
+      try{doc.addImage(cv.toDataURL('image/jpeg',0.9),'JPEG',M,13,imgW,pdfH);}catch(e){}
+      var ly=13+pdfH+5;
     // Legend
     [{l:'Sain',c:[46,168,74]},{l:'Consommé',c:[230,48,48]},{l:'Ré-alimenté',c:[249,115,22]},{l:'Absent',c:[150,150,150]},{l:'Non vérifié',c:[100,100,100]}].forEach(function(li,i){
       doc.setFillColor(li.c[0],li.c[1],li.c[2]);doc.circle(M+i*28+2,ly,2,'F');
@@ -1997,7 +1989,35 @@ function exportPDF(passageId){
         },
         margin:{left:M,right:M}});
     }
-  });
+    } // fin drawPlanContent
+
+    // Chargement async de l'image
+    if(plan.image_data){
+      var img=new Image();
+      img.onload=function(){
+        ctx.fillStyle='#f8f8f8';ctx.fillRect(0,0,cv.width,cv.height);
+        ctx.drawImage(img,0,0,cv.width,cv.height);
+        drawPlanContent();
+        onDone();
+      };
+      img.onerror=function(){
+        ctx.fillStyle='#f8f8f8';ctx.fillRect(0,0,cv.width,cv.height);
+        drawPlanContent();
+        onDone();
+      };
+      img.src=plan.image_data;
+    } else {
+      ctx.fillStyle='#f8f8f8';ctx.fillRect(0,0,cv.width,cv.height);
+      drawPlanContent();
+      onDone();
+    }
+  }
+
+  function runPlans(idx, onAllDone){
+    if(idx>=cPlans.length){onAllDone();return;}
+    renderOnePlanPDF(cPlans[idx],function(){runPlans(idx+1,onAllDone);});
+  }
+  runPlans(0, function(){
 
   // ═══════════════════════════
   // PAGE DÉTAIL POSTES
@@ -2123,6 +2143,8 @@ function exportPDF(passageId){
 
   doc.save('rapport-SGF-'+c.nom.replace(/\s+/g,'-')+'-'+pa.date_passage+'.pdf');
   toast('PDF téléchargé !');
+
+  }); // fin runPlans
 }
 function emailPassage(passageId){
   var pa=passages.find(function(p){return p.id===passageId;});if(!pa)return;
