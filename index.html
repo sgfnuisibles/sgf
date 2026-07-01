@@ -1927,7 +1927,7 @@ function exportPDF(passageId){
       prevPassages.forEach(function(prev){
         if(prev.id===passageId)return;
         var pr=gPosteRes(prev.id,p.id);
-        if(pr&&pr.statut==='consomme'||r.statut==='actif')intensity=Math.min(1,intensity+0.08);
+        if(pr&&(pr.statut==='actif'||pr.statut==='consomme'))intensity=Math.min(1,intensity+0.08);
       });
       if(intensity<0.08)return;
       var px=p.x/100*cv.width;var py=p.y/100*cv.height;
