@@ -555,14 +555,15 @@ function addPosteModal(contratId, cid){
   var cPlans=gContratPlans(contratId);
   var typesOpts=typesPostes.map(function(t){return '<option value="'+t.id+'">'+t.icon+' '+t.label+'</option>';}).join('');
   var plansOpts=cPlans.map(function(pl){return '<option value="'+pl.id+'">'+pl.nom+'</option>';}).join('');
-  var h='<div style="display:flex;flex-direction:column;gap:10px">';
-  h+='<div><label style="font-size:12px;color:var(--tx3)">Label (ex: P12)</label><input id="np-label" class="fi" placeholder="P12" style="margin-top:4px"></div>';
-  h+='<div><label style="font-size:12px;color:var(--tx3)">Type de poste</label><select id="np-type" class="fs" style="margin-top:4px;width:100%">'+typesOpts+'</select></div>';
-  h+='<div><label style="font-size:12px;color:var(--tx3)">Zone</label><input id="np-zone" class="fi" placeholder="RDC, Cave..." style="margin-top:4px"></div>';
-  h+='<div><label style="font-size:12px;color:var(--tx3)">Plan</label><select id="np-plan" class="fs" style="margin-top:4px;width:100%">'+plansOpts+'</select></div>';
-  h+='<button class="btn btn-r" onclick="saveNewPoste('+contratId+','+cid+')">✅ Ajouter</button>';
+  var h='<div style="display:flex;flex-direction:column;gap:12px">';
+  h+='<div><label style="font-size:12px;color:var(--tx3);font-weight:600">Label (ex: P12)</label><input id="np-label" class="fi" placeholder="P12" style="margin-top:4px;width:100%"></div>';
+  h+='<div><label style="font-size:12px;color:var(--tx3);font-weight:600">Type de poste</label><select id="np-type" class="fs" style="margin-top:4px;width:100%">'+typesOpts+'</select></div>';
+  h+='<div><label style="font-size:12px;color:var(--tx3);font-weight:600">Zone</label><input id="np-zone" class="fi" placeholder="RDC, Cave..." style="margin-top:4px;width:100%"></div>';
+  h+='<div><label style="font-size:12px;color:var(--tx3);font-weight:600">Plan</label><select id="np-plan" class="fs" style="margin-top:4px;width:100%">'+plansOpts+'</select></div>';
+  h+='<button class="btn btn-r" style="margin-top:4px" onclick="saveNewPoste('+contratId+','+cid+')">✅ Ajouter le poste</button>';
+  h+='<button class="btn btn-g" onclick="openPostesEditor('+contratId+','+cid+')">← Retour</button>';
   h+='</div>';
-  openModal('Nouveau poste', h);
+  openDrw('Nouveau poste', h);
 }
 
 function saveNewPoste(contratId, cid){
@@ -586,7 +587,6 @@ function saveNewPoste(contratId, cid){
     if(r.error){toast('⚠️ Erreur : '+r.error.message,true);return;}
     postes.push(r.data);
     toast('✓ Poste '+label+' ajouté !');
-    closeModal();
     openPostesEditor(contratId, cid);
   });
 }
