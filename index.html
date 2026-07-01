@@ -1628,8 +1628,8 @@ function renderRapports(){
     passages.forEach(function(pa){
       var c=gcl(pa.client_id);var ctr=gct(pa.contrat_id)||{nom:'—'};
       var res=gPassRes(pa.id);
-      var ok=res.filter(function(r){return r.statut==='ok';}).length;
-      var actif=res.filter(function(r){return r.statut==='actif';}).length;
+      var ok=res.filter(function(r){return r.statut==='sain'||r.statut==='ok';}).length;
+      var actif=res.filter(function(r){return r.statut==='consomme'||r.statut==='actif';}).length;
       var resConso=res.filter(function(r){return r.conso;});
       var consoMoy=resConso.length?Math.round(resConso.reduce(function(s,r){return s+parseInt(r.conso||0);},0)/resConso.length):null;
       h+='<tr class="click" onclick="openTerrain('+pa.id+')">';
