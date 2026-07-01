@@ -544,7 +544,10 @@ function openPostesEditor(contratId, cid){
     h+='<td>'+ptype.icon+' '+ptype.label+'</td>';
     h+='<td>'+(p.zone||'—')+'</td>';
     h+='<td>'+plan.nom+'</td>';
-    h+='<td><button class="btn btn-sm" style="background:rgba(230,48,48,.1);color:var(--acc);border:1px solid rgba(230,48,48,.2);padding:2px 8px" onclick="deletePosteFromEditor('+p.id+','+contratId+','+cid+')">🗑️</button></td>';
+    h+='<td style="white-space:nowrap">';
+    h+='<button class="btn btn-g btn-xs" style="margin-right:4px" onclick="positionnerPoste('+p.id+','+contratId+','+cid+')">📍</button>';
+    h+='<button class="btn btn-sm" style="background:rgba(230,48,48,.1);color:var(--acc);border:1px solid rgba(230,48,48,.2);padding:2px 8px" onclick="deletePosteFromEditor('+p.id+','+contratId+','+cid+')">🗑️</button>';
+    h+='</td>';
     h+='</tr>';
   });
   h+='</tbody></table>';
@@ -599,6 +602,67 @@ function deletePosteFromEditor(posteId, contratId, cid){
     postes=postes.filter(function(p){return p.id!==posteId;});
     toast('Poste supprimé');
     openPostesEditor(contratId, cid);
+  });
+}
+
+function positionnerPoste(posteId, contratId, cid){
+  var poste=postes.find(function(p){return p.id===posteId;});
+  if(!poste)return;
+  var plan=plans.find(function(pl){return pl.id===poste.plan_id;});
+  if(!plan||!plan.image_data){toast('⚠️ Ce plan n\'a pas d\'image',true);return;}
+
+  var h='<div style="font-size:13px;color:var(--tx2);margin-bottom:10px">Cliquez sur le plan pour positionner <strong>'+poste.label+'</strong></div>';
+  h+='<div id="pos-wrap" style="position:relative;display:inline-block;cursor:crosshair;width:100%">';
+  h+='<img id="pos-img" src="'+plan.image_data+'" style="width:100%;display:block;border-radius:8px">';
+  h+='<div id="pos-pin" style="display:none;position:absolute;transform:translate(-50%,-50%);font-size:22px;pointer-events:none">📍</div>';
+  h+='</div>';
+  h+='<div id="pos-coords" style="font-size:12px;color:var(--tx3);margin-top:6px"></div>';
+  h+='<div style="display:flex;gap:8px;margin-top:12px">';
+  h+='<button id="pos-save-btn" class="btn btn-r" style="display:none" onclick="savePostePosition('+posteId+','+contratId+','+cid+')">✅ Enregistrer la position</button>';
+  h+='<button class="btn btn-g" onclick="openPostesEditor('+contratId+','+cid+')">← Retour</button>';
+  h+='</div>';
+  openDrw('Positionner — '+poste.label, h);
+
+  // Stocker la position en cours
+  window._posX=poste.x||50;
+  window._posY=poste.y||50;
+
+  setTimeout(function(){
+    var wrap=document.getElementById('pos-wrap');
+    var pin=document.getElementById('pos-pin');
+    var coords=document.getElementById('pos-coords');
+    var saveBtn=document.getElementById('pos-save-btn');
+    if(!wrap)return;
+
+    // Afficher position actuelle
+    pin.style.display='block';
+    pin.style.left=window._posX+'%';
+    pin.style.top=window._posY+'%';
+    coords.textContent='Position actuelle : '+Math.round(window._posX)+'% / '+Math.round(window._posY)+'%';
+
+    wrap.addEventListener('click',function(e){
+      var rect=wrap.getBoundingClientRect();
+      var x=((e.clientX-rect.left)/rect.width)*100;
+      var y=((e.clientY-rect.top)/rect.height)*100;
+      x=Math.round(x*10)/10;
+      y=Math.round(y*10)/10;
+      window._posX=x;window._posY=y;
+      pin.style.left=x+'%';pin.style.top=y+'%';pin.style.display='block';
+      coords.textContent='Nouvelle position : '+Math.round(x)+'% / '+Math.round(y)+'%';
+      saveBtn.style.display='inline-block';
+    });
+  },100);
+}
+
+function savePostePosition(posteId, contratId, cid){
+  var x=window._posX;var y=window._posY;
+  syncOn();
+  db.from('postes').update({x:x,y:y}).eq('id',posteId).then(function(){
+    syncOff();
+    var p=postes.find(function(p){return p.id===posteId;});
+    if(p){p.x=x;p.y=y;}
+    toast('✓ Position enregistrée !');
+    openPostesEditor(contratId,cid);
   });
 }
 
