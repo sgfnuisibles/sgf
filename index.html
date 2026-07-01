@@ -808,8 +808,8 @@ function openPassagesDrw(contratId){
     h+='<div class="ds-title">HISTORIQUE DES PASSAGES</div>';
     passContrat.forEach(function(pa){
       var res=gPassRes(pa.id);
-      var ok=res.filter(function(r){return r.statut==='ok';}).length;
-      var actif=res.filter(function(r){return r.statut==='actif';}).length;
+      var ok=res.filter(function(r){return r.statut==='sain'||r.statut==='ok';}).length;
+      var actif=res.filter(function(r){return r.statut==='consomme'||r.statut==='actif';}).length;
       var total=gContratPostes(contratId).length;
       h+='<div class="pass-card" data-fn="openTerrain" data-passid="'+pa.id+'">';
       h+='<div style="display:flex;align-items:center;gap:10px"><div style="flex:1"><div style="font-family:Bebas Neue,sans-serif;font-size:18px;letter-spacing:1px;color:var(--acc)">'+fdate(pa.date_passage)+'</div>';
@@ -872,8 +872,8 @@ function openTerrain(passageId){
   var allP=gContratPostes(pa.contrat_id, pa.date_passage);
   var res=gPassRes(passageId);
   var total=allP.length,checked=res.length;
-  var ok=res.filter(function(r){return r.statut==='ok';}).length;
-  var actif=res.filter(function(r){return r.statut==='actif';}).length;
+  var ok=res.filter(function(r){return r.statut==='sain'||r.statut==='ok';}).length;
+  var actif=res.filter(function(r){return r.statut==='consomme'||r.statut==='actif';}).length;
   var pct=total?Math.round(checked/total*100):0;
   var r22=22,circ=2*Math.PI*r22,dash=circ*pct/100;
 
@@ -1110,8 +1110,8 @@ function refreshPinAndHeader(passageId){
   // Update session header stats
   var res=gPassRes(passageId);
   var total=allPostes.length,checked=res.length;
-  var ok=res.filter(function(r){return r.statut==='ok';}).length;
-  var actif=res.filter(function(r){return r.statut==='actif';}).length;
+  var ok=res.filter(function(r){return r.statut==='sain'||r.statut==='ok';}).length;
+  var actif=res.filter(function(r){return r.statut==='consomme'||r.statut==='actif';}).length;
   var pct=total?Math.round(checked/total*100):0;
   // Update progress circle text
   var pctEl=document.querySelector('.sess-head text');
@@ -1260,7 +1260,7 @@ function deletePassage(passageId){
 
 async function terminer(passageId){
   var pa=passages.find(function(p){return p.id===passageId;});if(!pa)return;
-  var actifs=gPassRes(passageId).filter(function(r){return r.statut==='actif';}).length;
+  var actifs=gPassRes(passageId).filter(function(r){return r.statut==='consomme'||r.statut==='actif';}).length;
   if(!confirm(actifs>0?'Terminer ? '+actifs+' poste(s) actif(s) !':'Terminer ce passage ?'))return;
   var notes=prompt('Notes de visite (optionnel) :')||'';;
   syncOn();
@@ -1644,9 +1644,9 @@ function drawHeatmap(passageId){
     var r=res.find(function(x){return x.poste_id===p.id;});
     var intensity=0;var color=[100,100,100];
     if(r){
-      if(r.statut==='actif'){color=[230,48,48];intensity=0.9;}
-      else if(r.statut==='remplace'){color=[249,115,22];intensity=0.65;}
-      else if(r.statut==='ok'){color=[46,168,74];intensity=0.35;}
+      if(r.statut==='consomme'||r.statut==='actif'||r.statut==='consomme'){color=[230,48,48];intensity=0.9;}
+      else if(r.statut==='realimente'||r.statut==='remplace'||r.statut==='realimente'){color=[249,115,22];intensity=0.65;}
+      else if(r.statut==='sain'||r.statut==='ok'||r.statut==='sain'){color=[46,168,74];intensity=0.35;}
       else if(r.statut==='absent'){color=[100,100,100];intensity=0.25;}
       if(r.conso){var c=parseInt(r.conso)||0;intensity=Math.min(1,intensity+(c/100)*0.35);}
     }
@@ -1654,7 +1654,7 @@ function drawHeatmap(passageId){
     allPassages.forEach(function(prevPa){
       if(prevPa.id===passageId)return;
       var prevRes=gPosteRes(prevPa.id,p.id);
-      if(prevRes&&prevRes.statut==='actif')intensity=Math.min(1,intensity+0.1);
+      if(prevRes&&(prevRes.statut==='actif'||prevRes.statut==='consomme'))intensity=Math.min(1,intensity+0.1);
     });
     if(intensity<0.1)return;
     var px=p.x/100*cv.width;var py=p.y/100*cv.height;
@@ -1678,8 +1678,8 @@ function renderRapports(){
     passages.forEach(function(pa){
       var c=gcl(pa.client_id);var ctr=gct(pa.contrat_id)||{nom:'—'};
       var res=gPassRes(pa.id);
-      var ok=res.filter(function(r){return r.statut==='ok';}).length;
-      var actif=res.filter(function(r){return r.statut==='actif';}).length;
+      var ok=res.filter(function(r){return r.statut==='sain'||r.statut==='ok';}).length;
+      var actif=res.filter(function(r){return r.statut==='consomme'||r.statut==='actif';}).length;
       var resConso=res.filter(function(r){return r.conso;});
       var consoMoy=resConso.length?Math.round(resConso.reduce(function(s,r){return s+parseInt(r.conso||0);},0)/resConso.length):null;
       h+='<tr class="click" onclick="openTerrain('+pa.id+')">';
@@ -1706,9 +1706,9 @@ function exportPDF(passageId){
   var ctr=gct(pa.contrat_id)||{nom:'',type:'',date_debut:'',date_fin:''};
   var allPostes=gContratPostes(pa.contrat_id, pa.date_passage);
   var res=gPassRes(passageId);
-  var ok=res.filter(function(r){return r.statut==='ok';}).length;
-  var actif=res.filter(function(r){return r.statut==='actif';}).length;
-  var remplace=res.filter(function(r){return r.statut==='remplace';}).length;
+  var ok=res.filter(function(r){return r.statut==='sain'||r.statut==='ok';}).length;
+  var actif=res.filter(function(r){return r.statut==='consomme'||r.statut==='actif';}).length;
+  var remplace=res.filter(function(r){return r.statut==='realimente'||r.statut==='remplace';}).length;
   var absent=res.filter(function(r){return r.statut==='absent';}).length;
   var nbPlacebo=res.filter(function(r){return r.produit==='placebo';}).length;
   var nbToxique=res.filter(function(r){return r.produit==='toxique';}).length;
@@ -1842,8 +1842,8 @@ function exportPDF(passageId){
     compRows.push([fdate(pa.date_passage)+' (actuel)',String(ok),String(actif),consoMoy+'%',String(nbToxique),String(nbPlacebo)]);
     prevPas.forEach(function(prev){
       var pr=gPassRes(prev.id);
-      var pok=pr.filter(function(r){return r.statut==='ok';}).length;
-      var pact=pr.filter(function(r){return r.statut==='actif';}).length;
+      var pok=pr.filter(function(r){return r.statut==='sain'||r.statut==='ok';}).length;
+      var pact=pr.filter(function(r){return r.statut==='consomme'||r.statut==='actif';}).length;
       var pc=pr.filter(function(r){return r.conso;});
       var pcm=pc.length?Math.round(pc.reduce(function(s,r){return s+parseInt(r.conso||0);},0)/pc.length):0;
       compRows.push([fdate(prev.date_passage),String(pok),String(pact),pcm+'%',String(pr.filter(function(r){return r.produit==='toxique';}).length),String(pr.filter(function(r){return r.produit==='placebo';}).length)]);
@@ -1927,7 +1927,7 @@ function exportPDF(passageId){
       prevPassages.forEach(function(prev){
         if(prev.id===passageId)return;
         var pr=gPosteRes(prev.id,p.id);
-        if(pr&&pr.statut==='actif')intensity=Math.min(1,intensity+0.08);
+        if(pr&&pr.statut==='consomme'||r.statut==='actif')intensity=Math.min(1,intensity+0.08);
       });
       if(intensity<0.08)return;
       var px=p.x/100*cv.width;var py=p.y/100*cv.height;
@@ -2130,8 +2130,8 @@ function emailPassage(passageId){
   var cContacts=contacts.filter(function(x){return x.client_id===pa.client_id;});
   var to=(cContacts.find(function(x){return x.principal;})||cContacts[0]||{email:''}).email||c.email||'';
   var res=gPassRes(passageId);
-  var ok=res.filter(function(r){return r.statut==='ok';}).length;
-  var actif=res.filter(function(r){return r.statut==='actif';}).length;
+  var ok=res.filter(function(r){return r.statut==='sain'||r.statut==='ok';}).length;
+  var actif=res.filter(function(r){return r.statut==='consomme'||r.statut==='actif';}).length;
   var absent=res.filter(function(r){return r.statut==='absent';}).length;
   var resConso=res.filter(function(r){return r.conso;});
   var consoMoy=resConso.length?Math.round(resConso.reduce(function(s,r){return s+parseInt(r.conso||0);},0)/resConso.length):0;
