@@ -248,7 +248,10 @@ function saveContrat(){
   const color=document.getElementById('f-color').value;
   const editId=document.getElementById('edit-id').value;
   if(!num||!client||!debut||!fin){alert('Merci de remplir tous les champs.');return;}
-  const contrat={id:num,client,color,debut,fin,montant_annuel:montant,freq_paiement:freq,passages:[...passageFields.filter(Boolean)]};
+  // Lire les valeurs directement depuis les inputs du DOM
+  const passInputs=document.querySelectorAll('#passages-list input[type=date]');
+  const passages=[...passInputs].map(inp=>inp.value).filter(Boolean);
+  const contrat={id:num,client,color,debut,fin,montant_annuel:montant,freq_paiement:freq,passages};
   if(editId){
     const idx=DATA.contracts.findIndex(x=>x.id===editId);
     if(idx>=0)DATA.contracts[idx]=contrat;
