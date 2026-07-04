@@ -315,7 +315,8 @@ function exportPassagePDF(cid, passageIndex){
   doc.text(c.client,W-M,12,{align:'right'});
   doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(255,200,200);
   doc.text(c.id+' · '+FREQ_FR[c.freq_paiement],W-M,17,{align:'right'});
-  doc.text(fmt(c.debut)+' → '+fmt(c.fin),W-M,22,{align:'right'});
+  const fmtShort=d=>{if(!d)return'—';const p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0];};
+  doc.text(fmtShort(c.debut)+' → '+fmtShort(c.fin),W-M,22,{align:'right'});
 
   // Titre passage
   doc.setFillColor(248,248,248);doc.rect(0,30,W,18,'F');
@@ -384,12 +385,11 @@ function exportPassagePDF(cid, passageIndex){
     styles:{font:'helvetica',fontSize:8,cellPadding:{top:3,right:3,bottom:3,left:3},textColor:[40,40,40],fillColor:[255,255,255],lineColor:[220,220,220],lineWidth:0.3},
     headStyles:{fillColor:[248,248,248],textColor:[120,120,120],fontStyle:'bold',fontSize:7.5},
     alternateRowStyles:{fillColor:[252,252,252]},
-    didDrawCell:function(data){
+    didParseCell:function(data){
       if(data.section==='body'&&data.column.index===5){
         const isEnc=data.cell.raw==='✓ Encaissé';
-        doc.setTextColor(isEnc?46:180,isEnc?168:180,isEnc?74:180);
-        doc.setFont('helvetica','bold');
-        doc.text(data.cell.raw,data.cell.x+data.cell.padding('left'),data.cell.y+data.cell.height/2+2.5);
+        data.cell.styles.textColor=isEnc?[46,168,74]:[180,180,180];
+        data.cell.styles.fontStyle='bold';
       }
     },
     margin:{left:M,right:M}
