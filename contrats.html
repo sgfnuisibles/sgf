@@ -6,13 +6,14 @@
 <title>Suivi Contrats SGF Nuisibles</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Arial,sans-serif;font-size:14px;color:#1a1a1a;background:#f0f0ee;padding:16px}
 h1{font-size:17px;font-weight:700;margin-bottom:4px}
 .subtitle{font-size:12px;color:#888;margin-bottom:16px}
 .topbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
-.topbar h1{flex:1}
+.topbar-left{display:flex;align-items:center;gap:10px;flex:1}
 .btn{padding:7px 16px;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:5px}
 .btn-primary{background:#1D9E75;color:#fff}
 .btn-primary:hover{background:#178a63}
@@ -22,8 +23,6 @@ h1{font-size:17px;font-weight:700;margin-bottom:4px}
 .btn-pdf:hover{background:#c42020}
 .btn-sm{padding:4px 10px;font-size:12px;border-radius:6px}
 .btn-danger{background:#fdeaea;color:#c0392b;border:1px solid #f5c6c6}
-
-/* Modal */
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:100;align-items:center;justify-content:center}
 .overlay.open{display:flex}
 .modal{background:#fff;border-radius:12px;padding:24px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.15)}
@@ -34,13 +33,11 @@ h1{font-size:17px;font-weight:700;margin-bottom:4px}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .form-actions{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
 .passages-list{border:1px solid #eee;border-radius:8px;overflow:hidden;margin-top:6px}
-.passages-list .pass-row{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #f0f0f0}
-.passages-list .pass-row:last-child{border-bottom:none}
+.pass-row{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #f0f0f0}
+.pass-row:last-child{border-bottom:none}
 .add-link{font-size:12px;color:#1D9E75;cursor:pointer;margin-top:6px;display:inline-block}
 .rm-btn{background:none;border:none;color:#ccc;cursor:pointer;font-size:16px;padding:0 4px}
 .rm-btn:hover{color:#c0392b}
-
-/* Contrats */
 .contrat{background:#fff;border-radius:10px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,0.07);overflow:hidden}
 .contrat-header{display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer;user-select:none}
 .contrat-header:hover{background:#fafafa}
@@ -69,23 +66,27 @@ textarea.cr{border:1px solid #e0e0e0;border-radius:6px;padding:4px 8px;font-size
 .tot strong{display:block;font-size:16px;font-weight:700}
 .header-actions{display:flex;gap:6px}
 .empty{text-align:center;padding:40px;color:#bbb;font-size:13px}
-.export-btn{margin-top:10px;padding:6px 14px;background:#f0f0ee;color:#555;border:1px solid #ddd;border-radius:8px;font-size:12px;cursor:pointer}
-.export-btn:hover{background:#e5e5e3}
+.loading{text-align:center;padding:40px;color:#888;font-size:13px}
+.sync-bar{position:fixed;top:0;left:0;right:0;height:2px;background:#1D9E75;transform:scaleX(0);transform-origin:left;transition:transform .3s;z-index:999}
+.sync-bar.on{transform:scaleX(1)}
 </style>
 </head>
 <body>
 
+<div class="sync-bar" id="sync"></div>
+
 <div class="topbar">
-  <button class="btn btn-secondary" onclick="window.location.href='index.html'">← Retour</button>
-  <div style="flex:1">
-    <h1>SGF Nuisibles — Contrats</h1>
-    <div class="subtitle">Passages terrain &amp; échéancier de facturation</div>
+  <div class="topbar-left">
+    <button class="btn btn-secondary" onclick="window.location.href='index.html'">← Retour</button>
+    <div>
+      <h1>SGF Nuisibles — Contrats</h1>
+      <div class="subtitle">Passages terrain &amp; échéancier de facturation</div>
+    </div>
   </div>
-  <button class="btn btn-secondary" onclick="exportJSON()">💾 Sauvegarde</button>
   <button class="btn btn-primary" onclick="openModal()">+ Nouveau contrat</button>
 </div>
 
-<div id="app"></div>
+<div id="app"><div class="loading">Chargement…</div></div>
 
 <div class="overlay" id="overlay" onclick="closeModalOutside(event)">
   <div class="modal">
@@ -151,48 +152,85 @@ textarea.cr{border:1px solid #e0e0e0;border-radius:6px;padding:4px 8px;font-size
 </div>
 
 <script>
+const SB_URL='https://lnisubupgzkprhrctctr.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxuaXN1YnVwZ3prcHJocmN0Y3RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0MjAwNjUsImV4cCI6MjA4ODk5NjA2NX0.z2J1-Us7a0kAGzqZhDQflH2s86Z0h95CE4mXhbVcF0w';
+const db=supabase.createClient(SB_URL,SB_KEY);
+
 const FREQ_NB={annuel:1,semestriel:2,trimestriel:4,mensuel:12};
 const FREQ_FR={annuel:'Annuel',semestriel:'Semestriel',trimestriel:'Trimestriel',mensuel:'Mensuel'};
-const LOGO='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
-function loadData(){try{return JSON.parse(localStorage.getItem('sgf_contrats_v2')||'{}')}catch(e){return{}}}
-function saveData(d){localStorage.setItem('sgf_contrats_v2',JSON.stringify(d))}
+let CONTRATS=[];
+let SUIVI={};
 
-let DATA=loadData();
-if(!DATA.contracts)DATA.contracts=[];
-if(!DATA.suivi)DATA.suivi={};
-
-// Seed données initiales
-if(DATA.contracts.length===0){
-  DATA.contracts=[
-    {id:'C-001',client:'Suscillon',color:'#1D9E75',debut:'2026-01-28',fin:'2027-01-27',montant_annuel:940,freq_paiement:'trimestriel',passages:['2026-01-28','2026-04-28','2026-07-28','2026-10-28']},
-    {id:'C-002',client:'MAFE',color:'#378ADD',debut:'2025-10-13',fin:'2026-10-13',montant_annuel:1632,freq_paiement:'trimestriel',passages:['2025-10-13','2026-01-13','2026-04-13','2026-07-13']},
-    {id:'C-003',client:'Ecole Notre Dame Bourgoin',color:'#7F77DD',debut:'2026-03-12',fin:'2027-03-11',montant_annuel:876,freq_paiement:'annuel',passages:['2026-03-12','2026-09-12']},
-    {id:'C-004',client:'Collège St Joseph Bourgoin',color:'#D85A30',debut:'2026-03-11',fin:'2027-03-11',montant_annuel:591,freq_paiement:'annuel',passages:['2026-03-11','2026-09-11']},
-    {id:'C-005',client:'Médiathèque LTDP (moustiques)',color:'#BA7517',debut:'2026-05-07',fin:'2026-11-07',montant_annuel:928.8,freq_paiement:'annuel',passages:['2026-05-07','2026-07-07','2026-09-07']},
-    {id:'C-006',client:'Mairie le Passage',color:'#0F6E56',debut:'2025-09-29',fin:'2026-09-29',montant_annuel:280,freq_paiement:'annuel',passages:['2025-09-29']},
-  ];
-  saveData(DATA);
-}
-
-function getFactures(c){
-  const nb=FREQ_NB[c.freq_paiement]||1;
-  const montant=c.montant_annuel/nb;
-  const debut=new Date(c.debut);
-  const step=Math.round(12/nb);
-  return Array.from({length:nb},(_,i)=>{
-    const d=new Date(debut);
-    d.setMonth(d.getMonth()+i*step);
-    return{label:nb===1?'Annuel':`Éch. ${i+1}/${nb}`,date_prevue:d.toISOString().slice(0,10),montant};
-  });
-}
-
+function syncOn(){document.getElementById('sync').classList.add('on');}
+function syncOff(){document.getElementById('sync').classList.remove('on');}
 function fmt(d){if(!d)return'—';return new Date(d).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});}
+function fmtShort(d){if(!d)return'—';const p=d.split?d.split('-'):d.toISOString().split('T')[0].split('-');return p[2]+'/'+p[1]+'/'+p[0];}
+
+// ── LOAD ──
+async function loadAll(){
+  syncOn();
+  const r=await db.from('contrats_suivi').select('*').order('id');
+  if(r.error){console.error(r.error);syncOff();return;}
+  CONTRATS=r.data||[];
+
+  const s=await db.from('suivi_passages').select('*');
+  if(!s.error){
+    (s.data||[]).forEach(row=>{SUIVI[row.contrat_id]={passages:row.passages||{},factures:row.factures||{},suivi_id:row.id};});
+  }
+  syncOff();
+  renderAll();
+}
+
+// ── SUPABASE CONTRAT ──
+async function dbSaveContrat(contrat, editId){
+  syncOn();
+  const data={
+    num_contrat:contrat.id,
+    client:contrat.client,
+    color:contrat.color,
+    debut:contrat.debut,
+    fin:contrat.fin,
+    montant_annuel:contrat.montant_annuel,
+    freq_paiement:contrat.freq_paiement,
+    passages:contrat.passages
+  };
+  let r;
+  if(editId){
+    r=await db.from('contrats_suivi').update(data).eq('id',editId).select().single();
+  } else {
+    r=await db.from('contrats_suivi').insert(data).select().single();
+  }
+  syncOff();
+  return r;
+}
+
+async function dbDeleteContrat(dbId){
+  syncOn();
+  await db.from('suivi_passages').delete().eq('contrat_id',dbId);
+  await db.from('contrats_suivi').delete().eq('id',dbId);
+  syncOff();
+}
+
+async function dbSaveSuivi(dbId, passages, factures){
+  syncOn();
+  const existing=SUIVI[dbId];
+  let r;
+  if(existing&&existing.suivi_id){
+    r=await db.from('suivi_passages').update({passages,factures,updated_at:new Date().toISOString()}).eq('id',existing.suivi_id);
+  } else {
+    r=await db.from('suivi_passages').insert({contrat_id:dbId,passages,factures}).select().single();
+    if(r.data) SUIVI[dbId]={passages,factures,suivi_id:r.data.id};
+  }
+  if(SUIVI[dbId]){SUIVI[dbId].passages=passages;SUIVI[dbId].factures=factures;}
+  syncOff();
+  return r;
+}
 
 // ── MODAL ──
 let passageFields=[];
 
-function openModal(id){
+function openModal(dbId){
   passageFields=[];
   document.getElementById('edit-id').value='';
   document.getElementById('f-num').value='';
@@ -203,17 +241,17 @@ function openModal(id){
   document.getElementById('f-freq-paiement').value='annuel';
   document.getElementById('f-color').value='#1D9E75';
   document.getElementById('modal-title').textContent='Nouveau contrat';
-  if(id){
-    const c=DATA.contracts.find(x=>x.id===id);
+  if(dbId){
+    const c=CONTRATS.find(x=>x.id===dbId);
     if(c){
       document.getElementById('edit-id').value=c.id;
-      document.getElementById('f-num').value=c.id;
-      document.getElementById('f-client').value=c.client;
-      document.getElementById('f-debut').value=c.debut;
-      document.getElementById('f-fin').value=c.fin;
-      document.getElementById('f-montant').value=c.montant_annuel;
-      document.getElementById('f-freq-paiement').value=c.freq_paiement;
-      document.getElementById('f-color').value=c.color;
+      document.getElementById('f-num').value=c.num_contrat||'';
+      document.getElementById('f-client').value=c.client||'';
+      document.getElementById('f-debut').value=c.debut||'';
+      document.getElementById('f-fin').value=c.fin||'';
+      document.getElementById('f-montant').value=c.montant_annuel||'';
+      document.getElementById('f-freq-paiement').value=c.freq_paiement||'annuel';
+      document.getElementById('f-color').value=c.color||'#1D9E75';
       document.getElementById('modal-title').textContent='Modifier le contrat';
       passageFields=[...(c.passages||[])];
     }
@@ -224,7 +262,6 @@ function openModal(id){
 
 function closeModal(){document.getElementById('overlay').classList.remove('open');}
 function closeModalOutside(e){if(e.target===document.getElementById('overlay'))closeModal();}
-
 function addPassageField(date=''){passageFields.push(date);renderPassageFields();}
 
 function renderPassageFields(){
@@ -239,7 +276,9 @@ function renderPassageFields(){
 
 function removePassage(i){passageFields.splice(i,1);renderPassageFields();}
 
-function saveContrat(){
+async function saveContrat(){
+  const passInputs=document.querySelectorAll('#passages-list input[type=date]');
+  const passages=[...passInputs].map(inp=>inp.value).filter(Boolean);
   const num=document.getElementById('f-num').value.trim();
   const client=document.getElementById('f-client').value.trim();
   const debut=document.getElementById('f-debut').value;
@@ -249,55 +288,64 @@ function saveContrat(){
   const color=document.getElementById('f-color').value;
   const editId=document.getElementById('edit-id').value;
   if(!num||!client||!debut||!fin){alert('Merci de remplir tous les champs.');return;}
-  // Lire les valeurs directement depuis les inputs du DOM
-  const passInputs=document.querySelectorAll('#passages-list input[type=date]');
-  const passages=[...passInputs].map(inp=>inp.value).filter(Boolean);
   const contrat={id:num,client,color,debut,fin,montant_annuel:montant,freq_paiement:freq,passages};
-  if(editId){
-    const idx=DATA.contracts.findIndex(x=>x.id===editId);
-    if(idx>=0)DATA.contracts[idx]=contrat;
-  } else {
-    if(DATA.contracts.find(x=>x.id===num)){alert('Ce numéro existe déjà.');return;}
-    DATA.contracts.push(contrat);
-  }
-  saveData(DATA);closeModal();renderAll();
+  const r=await dbSaveContrat(contrat,editId?parseInt(editId):null);
+  if(r.error){alert('Erreur : '+r.error.message);return;}
+  closeModal();
+  await loadAll();
 }
 
-function deleteContrat(id){
+async function deleteContrat(dbId){
   if(!confirm('Supprimer ce contrat ?'))return;
-  DATA.contracts=DATA.contracts.filter(x=>x.id!==id);
-  delete DATA.suivi[id];
-  saveData(DATA);renderAll();
+  await dbDeleteContrat(dbId);
+  CONTRATS=CONTRATS.filter(x=>x.id!==dbId);
+  delete SUIVI[dbId];
+  renderAll();
 }
 
 // ── SUIVI ──
-function getSuivi(id){return DATA.suivi[id]||{passages:{},factures:{}};}
+function getSuivi(dbId){return SUIVI[dbId]||{passages:{},factures:{}};}
 
-function saveSuivi(cid){
-  if(!DATA.suivi[cid])DATA.suivi[cid]={passages:{},factures:{}};
-  document.querySelectorAll(`[data-cid="${cid}"]`).forEach(el=>{
+async function saveSuivi(dbId){
+  if(!dbId)return;
+  const passages={};const factures={};
+  document.querySelectorAll(`[data-dbid="${dbId}"]`).forEach(el=>{
     const{type,key,field}=el.dataset;
-    if(!DATA.suivi[cid][type])DATA.suivi[cid][type]={};
-    if(!DATA.suivi[cid][type][key])DATA.suivi[cid][type][key]={};
-    DATA.suivi[cid][type][key][field]=el.value;
+    if(type==='passages'){if(!passages[key])passages[key]={};passages[key][field]=el.value;}
+    else if(type==='factures'){if(!factures[key])factures[key]={};factures[key][field]=el.value;}
   });
-  saveData(DATA);
-  const ok=document.getElementById('ok-'+cid);
-  ok.style.display='inline';
-  setTimeout(()=>{ok.style.display='none';renderAll();},1200);
+  SUIVI[dbId]=SUIVI[dbId]||{passages:{},factures:{}};
+  SUIVI[dbId].passages=passages;
+  SUIVI[dbId].factures=factures;
+  await dbSaveSuivi(dbId,passages,factures);
+  const ok=document.getElementById('ok-'+dbId);
+  if(ok){ok.style.display='inline';setTimeout(()=>{ok.style.display='none';renderAll();},1200);}
+}
+
+// ── FACTURES ──
+function getFactures(c){
+  const nb=FREQ_NB[c.freq_paiement]||1;
+  const montant=c.montant_annuel/nb;
+  const debut=new Date(c.debut);
+  const step=Math.round(12/nb);
+  return Array.from({length:nb},(_,i)=>{
+    const d=new Date(debut);
+    d.setMonth(d.getMonth()+i*step);
+    return{label:nb===1?'Annuel':`Éch. ${i+1}/${nb}`,date_prevue:d.toISOString().slice(0,10),montant};
+  });
 }
 
 // ── PDF ──
-function exportPassagePDF(cid, passageIndex){
+function exportPassagePDF(dbId, passageIndex){
   const jsPDF=window.jspdf?window.jspdf.jsPDF:null;
   if(!jsPDF){alert('PDF non disponible');return;}
-  const c=DATA.contracts.find(x=>x.id===cid);if(!c)return;
-  const sv=getSuivi(cid);
+  const c=CONTRATS.find(x=>x.id===dbId);if(!c)return;
+  const sv=getSuivi(dbId);
   const sp=sv.passages||{};
   const sf=sv.factures||{};
   const key='p'+passageIndex;
   const passData=sp[key]||{};
-  const date=passData.date||c.passages[passageIndex]||'';
+  const date=passData.date||(c.passages||[])[passageIndex]||'';
   const statut=passData.statut||'prevu';
   const cr=passData.cr||'';
   const factures=getFactures(c);
@@ -305,7 +353,6 @@ function exportPassagePDF(cid, passageIndex){
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const W=210,M=15;
 
-  // En-tête rouge
   doc.setFillColor(230,48,48);doc.rect(0,0,W,30,'F');
   doc.setFont('helvetica','bold');doc.setFontSize(14);doc.setTextColor(255,255,255);
   doc.text('SGF NUISIBLES',M,12);
@@ -313,16 +360,12 @@ function exportPassagePDF(cid, passageIndex){
   doc.text('Stop Guêpes-Frelons et Nuisibles',M,17);
   doc.text('215 Montée des Pierres — 38730 Chélieu',M,22);
   doc.text('contact@sgfnuisibles.fr',M,27);
-
-  // Client droite
   doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(255,255,255);
   doc.text(c.client,W-M,12,{align:'right'});
   doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(255,200,200);
-  doc.text(c.id+' · '+FREQ_FR[c.freq_paiement],W-M,17,{align:'right'});
-  const fmtShort=d=>{if(!d)return'—';const p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0];};
+  doc.text((c.num_contrat||'')+' · '+(FREQ_FR[c.freq_paiement]||''),W-M,17,{align:'right'});
   doc.text(fmtShort(c.debut)+' → '+fmtShort(c.fin),W-M,22,{align:'right'});
 
-  // Titre passage
   doc.setFillColor(248,248,248);doc.rect(0,30,W,18,'F');
   doc.setFont('helvetica','bold');doc.setFontSize(16);doc.setTextColor(230,48,48);
   doc.text('Compte-rendu de passage',M,43);
@@ -332,22 +375,15 @@ function exportPassagePDF(cid, passageIndex){
   doc.setFillColor(230,48,48);doc.rect(0,48,W,0.5,'F');
 
   let y=58;
-
-  // Statut badge
-  const statutColors={fait:[46,168,74],prevu:[150,150,150]};
-  const statutLabels={fait:'✓ Effectué',prevu:'À faire'};
-  const sc=statutColors[statut]||[150,150,150];
+  const sc=statut==='fait'?[46,168,74]:[150,150,150];
   doc.setFillColor(sc[0],sc[1],sc[2]);
   doc.roundedRect(M,y,40,10,2,2,'F');
   doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(255,255,255);
-  doc.text(statutLabels[statut]||statut,M+20,y+7,{align:'center'});
-
-  // Infos passage
+  doc.text(statut==='fait'?'✓ Effectué':'À faire',M+20,y+7,{align:'center'});
   doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(40,40,40);
   doc.text('Date d\'intervention : '+fmt(date),M+50,y+7);
   y+=18;
 
-  // Compte-rendu
   doc.setFillColor(250,250,250);doc.roundedRect(M,y,W-M*2,cr?Math.max(30,cr.length/3):30,2,2,'F');
   doc.setDrawColor(220,220,220);doc.setLineWidth(0.3);doc.roundedRect(M,y,W-M*2,cr?Math.max(30,cr.length/3):30,2,2,'S');
   doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(80,80,80);
@@ -364,28 +400,18 @@ function exportPassagePDF(cid, passageIndex){
   }
   y+=5;
 
-  // Échéancier facturation
   doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(60,60,60);
   doc.text('ÉCHÉANCIER DE FACTURATION',M,y);y+=5;
 
   const factRows=factures.map((f,i)=>{
-    const fkey='f'+i;
-    const fd=sf[fkey]||{};
-    return[
-      f.label,
-      f.montant.toLocaleString('fr-FR',{minimumFractionDigits:2})+' €',
-      fmt(fd.date_prevue||f.date_prevue),
-      fmt(fd.date_envoi||''),
-      fmt(fd.date_encaissement||''),
-      fd.date_encaissement?'✓ Encaissé':'En attente'
-    ];
+    const fkey='f'+i;const fd=sf[fkey]||{};
+    return[f.label,f.montant.toLocaleString('fr-FR',{minimumFractionDigits:2})+' €',fmt(fd.date_prevue||f.date_prevue),fmt(fd.date_envoi||''),fmt(fd.date_encaissement||''),fd.date_encaissement?'✓ Encaissé':'En attente'];
   });
 
   doc.autoTable({
     startY:y,
     head:[['Échéance','Montant','Date prévue','Envoi facture','Encaissement','Statut']],
-    body:factRows,
-    theme:'plain',
+    body:factRows,theme:'plain',
     styles:{font:'helvetica',fontSize:8,cellPadding:{top:3,right:3,bottom:3,left:3},textColor:[40,40,40],fillColor:[255,255,255],lineColor:[220,220,220],lineWidth:0.3},
     headStyles:{fillColor:[248,248,248],textColor:[120,120,120],fontStyle:'bold',fontSize:7.5},
     alternateRowStyles:{fillColor:[252,252,252]},
@@ -400,10 +426,9 @@ function exportPassagePDF(cid, passageIndex){
   });
 
   y=doc.lastAutoTable.finalY+10;
-
-  // Totaux
   const totalEnc=factures.reduce((s,f,i)=>{const k='f'+i;return sf[k]?.date_encaissement?s+f.montant:s;},0);
   const totalAtt=factures.reduce((s,f)=>s+f.montant,0)-totalEnc;
+
   doc.setFillColor(236,253,243);doc.roundedRect(M,y,55,18,2,2,'F');
   doc.setDrawColor(46,168,74);doc.setLineWidth(0.3);doc.roundedRect(M,y,55,18,2,2,'S');
   doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(46,168,74);
@@ -416,22 +441,12 @@ function exportPassagePDF(cid, passageIndex){
   doc.text('En attente',M+63,y+6);
   doc.setFontSize(13);doc.text(totalAtt.toLocaleString('fr-FR',{minimumFractionDigits:2})+' €',M+63,y+14);
 
-  // Footer
   doc.setFillColor(230,48,48);doc.rect(0,285,W,12,'F');
   doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(255,200,200);
   doc.text('SGF Nuisibles — Stop Guêpes-Frelons et Nuisibles — contact@sgfnuisibles.fr',M,292);
   doc.text('Page 1/1',W-M,292,{align:'right'});
 
-  doc.save('CR-'+c.client.replace(/\s+/g,'-')+'-passage'+(passageIndex+1)+'-'+date+'.pdf');
-}
-
-// ── EXPORT JSON ──
-function exportJSON(){
-  const blob=new Blob([JSON.stringify(DATA,null,2)],{type:'application/json'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download='sgf-contrats-sauvegarde-'+new Date().toISOString().split('T')[0]+'.json';
-  a.click();
+  doc.save('CR-'+(c.client||'').replace(/\s+/g,'-')+'-passage'+(passageIndex+1)+'-'+date+'.pdf');
 }
 
 // ── RENDER ──
@@ -440,37 +455,36 @@ function renderContrat(c){
   const sp=sv.passages||{};
   const sf=sv.factures||{};
   const factures=getFactures(c);
+  const color=c.color||'#1D9E75';
 
-  // Passages
   const passRows=(c.passages||[]).map((d,i)=>{
     const key='p'+i;
-    const date=sp[key]?.date||d;
+    const date=sp[key]?.date||d||'';
     const statut=sp[key]?.statut||'prevu';
     const cr=sp[key]?.cr||'';
     return`<tr>
       <td style="width:24px;text-align:center;color:#ccc;font-size:11px">${i+1}</td>
-      <td><input type="date" value="${date}" data-cid="${c.id}" data-type="passages" data-key="${key}" data-field="date"></td>
-      <td><select class="status-sel" data-cid="${c.id}" data-type="passages" data-key="${key}" data-field="statut">
+      <td><input type="date" value="${date}" data-dbid="${c.id}" data-type="passages" data-key="${key}" data-field="date"></td>
+      <td><select class="status-sel" data-dbid="${c.id}" data-type="passages" data-key="${key}" data-field="statut">
         <option value="prevu" ${statut==='prevu'?'selected':''}>À faire</option>
         <option value="fait" ${statut==='fait'?'selected':''}>✓ Fait</option>
       </select></td>
-      <td><textarea class="cr" rows="1" placeholder="Compte-rendu…" data-cid="${c.id}" data-type="passages" data-key="${key}" data-field="cr">${cr}</textarea></td>
-      <td><button class="btn btn-pdf btn-sm" onclick="exportPassagePDF('${c.id}',${i})">📄 PDF</button></td>
+      <td><textarea class="cr" rows="1" placeholder="Compte-rendu…" data-dbid="${c.id}" data-type="passages" data-key="${key}" data-field="cr">${cr}</textarea></td>
+      <td><button class="btn btn-pdf btn-sm" onclick="exportPassagePDF(${c.id},${i})">📄 PDF</button></td>
     </tr>`;
   }).join('');
 
-  // Factures
   const factRows=factures.map((f,i)=>{
     const key='f'+i;
-    const dp=sf[key]?.date_prevue||f.date_prevue;
+    const dp=sf[key]?.date_prevue||f.date_prevue||'';
     const de=sf[key]?.date_envoi||'';
     const den=sf[key]?.date_encaissement||'';
     return`<tr>
       <td style="color:#666;white-space:nowrap">${f.label}</td>
       <td style="font-weight:600;white-space:nowrap">${f.montant.toLocaleString('fr-FR',{minimumFractionDigits:2})} €</td>
-      <td><input type="date" value="${dp}" data-cid="${c.id}" data-type="factures" data-key="${key}" data-field="date_prevue"></td>
-      <td><input type="date" value="${de}" data-cid="${c.id}" data-type="factures" data-key="${key}" data-field="date_envoi"></td>
-      <td><input type="date" value="${den}" data-cid="${c.id}" data-type="factures" data-key="${key}" data-field="date_encaissement"></td>
+      <td><input type="date" value="${dp}" data-dbid="${c.id}" data-type="factures" data-key="${key}" data-field="date_prevue"></td>
+      <td><input type="date" value="${de}" data-dbid="${c.id}" data-type="factures" data-key="${key}" data-field="date_envoi"></td>
+      <td><input type="date" value="${den}" data-dbid="${c.id}" data-type="factures" data-key="${key}" data-field="date_encaissement"></td>
     </tr>`;
   }).join('');
 
@@ -479,19 +493,19 @@ function renderContrat(c){
   const nbFait=(c.passages||[]).filter((_,i)=>(sp['p'+i]?.statut||'prevu')==='fait').length;
 
   return`<div class="contrat">
-    <div class="contrat-header" onclick="toggle('${c.id}')">
-      <div class="color-bar" style="background:${c.color}"></div>
+    <div class="contrat-header" onclick="toggle(${c.id})">
+      <div class="color-bar" style="background:${color}"></div>
       <div class="contrat-title">
-        <h2>${c.client}</h2>
+        <h2>${c.client||''}</h2>
         <div class="meta">
-          <span class="badge" style="background:${c.color}22;color:${c.color}">${c.id}</span>
-          ${fmt(c.debut)} → ${fmt(c.fin)} &nbsp;·&nbsp; ${c.montant_annuel.toLocaleString('fr-FR',{minimumFractionDigits:2})} €/an
+          <span class="badge" style="background:${color}22;color:${color}">${c.num_contrat||''}</span>
+          ${fmt(c.debut)} → ${fmt(c.fin)} &nbsp;·&nbsp; ${(c.montant_annuel||0).toLocaleString('fr-FR',{minimumFractionDigits:2})} €/an
           &nbsp;·&nbsp; ${nbFait}/${(c.passages||[]).length} passages effectués
         </div>
       </div>
       <div class="header-actions" onclick="event.stopPropagation()">
-        <button class="btn btn-secondary btn-sm" onclick="openModal('${c.id}')">✏️</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteContrat('${c.id}')">🗑</button>
+        <button class="btn btn-secondary btn-sm" onclick="openModal(${c.id})">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteContrat(${c.id})">🗑</button>
       </div>
       <span class="arrow" id="arrow-${c.id}" style="margin-left:8px">▶</span>
     </div>
@@ -499,39 +513,35 @@ function renderContrat(c){
       <div class="section-title">Passages terrain</div>
       <div style="overflow-x:auto"><table>
         <thead><tr><th>#</th><th>Date estimée</th><th>Statut</th><th>Compte-rendu / Remarque</th><th>PDF</th></tr></thead>
-        <tbody>${passRows}</tbody>
+        <tbody>${passRows||'<tr><td colspan="5" style="color:#ccc;text-align:center;padding:14px">Aucun passage configuré</td></tr>'}</tbody>
       </table></div>
-
       <div class="section-title" style="margin-top:18px">Échéancier de facturation</div>
       <div style="overflow-x:auto"><table>
         <thead><tr><th>Échéance</th><th>Montant</th><th>Date prévue</th><th>Date envoi facture</th><th>Date encaissement</th></tr></thead>
         <tbody>${factRows}</tbody>
       </table></div>
-
       <div class="totaux">
         <div class="tot"><strong style="color:#1D9E75">${totalEnc.toLocaleString('fr-FR',{minimumFractionDigits:2})} €</strong>Encaissé</div>
         <div class="tot"><strong style="color:#BA7517">${totalAtt.toLocaleString('fr-FR',{minimumFractionDigits:2})} €</strong>En attente</div>
       </div>
-      <button class="save-btn" onclick="saveSuivi('${c.id}')">Enregistrer</button>
+      <button class="save-btn" onclick="saveSuivi(${c.id})">Enregistrer</button>
       <span class="save-ok" id="ok-${c.id}">✓ Sauvegardé</span>
     </div>
   </div>`;
 }
 
 function toggle(id){
-  const opens={};
-  DATA.contracts.forEach(c=>{opens[c.id]=document.getElementById('body-'+c.id)?.classList.contains('open');});
   document.getElementById('body-'+id).classList.toggle('open');
   document.getElementById('arrow-'+id).classList.toggle('open');
 }
 
 function renderAll(){
   const opens={};
-  DATA.contracts.forEach(c=>{opens[c.id]=document.getElementById('body-'+c.id)?.classList.contains('open');});
-  document.getElementById('app').innerHTML=DATA.contracts.length
-    ?DATA.contracts.map(renderContrat).join('')
+  CONTRATS.forEach(c=>{opens[c.id]=document.getElementById('body-'+c.id)?.classList.contains('open');});
+  document.getElementById('app').innerHTML=CONTRATS.length
+    ?CONTRATS.map(renderContrat).join('')
     :'<div class="empty">Aucun contrat — cliquez sur "+ Nouveau contrat"</div>';
-  DATA.contracts.forEach(c=>{
+  CONTRATS.forEach(c=>{
     if(opens[c.id]){
       document.getElementById('body-'+c.id)?.classList.add('open');
       document.getElementById('arrow-'+c.id)?.classList.add('open');
@@ -539,7 +549,7 @@ function renderAll(){
   });
 }
 
-renderAll();
+loadAll();
 </script>
 </body>
 </html>
