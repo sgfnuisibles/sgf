@@ -211,15 +211,19 @@ function getGanttByMonth(c,year){
   const map={};
   const sv=getSuivi(c.id);
   const sp=sv.passages||{};
-  (c.passages||[]).forEach((d,i)=>{
-    if(!d)return;
-    const dt=new Date(d);
+  // Priorité aux dates du suivi (modifiées par l'utilisateur), sinon dates initiales
+  const nb=(c.passages||[]).length;
+  for(let i=0;i<nb;i++){
+    const key='p'+i;
+    const dateStr=(sp[key]&&sp[key].date)||(c.passages||[])[i];
+    if(!dateStr)continue;
+    const dt=new Date(dateStr);
     if(dt.getFullYear()===year){
       const m=dt.getMonth();
       if(!map[m])map[m]=[];
-      map[m].push({idx:i,statut:(sp['p'+i]&&sp['p'+i].statut)||'prevu'});
+      map[m].push({idx:i,statut:(sp[key]&&sp[key].statut)||'prevu'});
     }
-  });
+  }
   return map;
 }
 
