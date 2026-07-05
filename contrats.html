@@ -69,6 +69,39 @@ textarea.cr{border:1px solid #e0e0e0;border-radius:6px;padding:4px 8px;font-size
 .loading{text-align:center;padding:40px;color:#888;font-size:13px}
 .sync-bar{position:fixed;top:0;left:0;right:0;height:2px;background:#1D9E75;transform:scaleX(0);transform-origin:left;transition:transform .3s;z-index:999}
 .sync-bar.on{transform:scaleX(1)}
+
+
+
+.gantt-section{background:var(--surface-2,#fff);border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,0.07);padding:14px 16px;margin-bottom:16px;overflow-x:auto}
+.gantt-controls{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px}
+.gantt-controls-left{display:flex;gap:5px}
+.ybtn{padding:3px 11px;border:0.5px solid #ddd;border-radius:7px;background:transparent;color:#888;cursor:pointer;font-size:12px}
+.ybtn.active{background:#e8f4f0;color:#1D9E75;border-color:#1D9E75}
+.gantt-legend{display:flex;gap:12px;font-size:11px;color:#aaa}
+.gantt-leg{display:flex;align-items:center;gap:4px}
+.gantt-leg-dot{width:9px;height:9px;border-radius:50%;background:#1D9E75}
+.gtable{border-collapse:collapse;width:100%;min-width:580px}
+.gtable thead th{font-size:10px;font-weight:500;color:#bbb;text-align:center;padding:5px 2px;border-bottom:0.5px solid #eee}
+.gtable thead th.gcol-client{text-align:left;min-width:130px;padding-left:0}
+.gtable thead th.gcur-m{color:#1a1a1a;font-weight:600}
+.gtable tbody tr{border-bottom:0.5px solid #f5f5f5}
+.gtable tbody tr:last-child{border-bottom:none}
+.gtable td{padding:5px 2px;vertical-align:middle}
+.gtable td.gcol-client{padding-left:0}
+.gclient-name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
+.gclient-num{font-size:10px;color:#bbb}
+.gcell{text-align:center}
+.gcell.gcur-m{background:#f0f8f4;border-radius:3px}
+.gdot-wrap{display:flex;align-items:center;justify-content:center;height:26px}
+.gdot{width:11px;height:11px;border-radius:50%;display:inline-block}
+.gdot-none{width:4px;height:4px;border-radius:50%;background:#e0e0e0;display:inline-block}
+.gtotal-col{font-size:11px;font-weight:600;color:#999;text-align:center;padding:5px 6px}
+.gfoot-row td{border-top:0.5px solid #eee;padding-top:7px;font-size:11px;color:#bbb;text-align:center}
+.gfoot-row td.gcol-client{text-align:left;font-size:10px}
+.gcnt{display:inline-block;min-width:17px;height:17px;line-height:17px;text-align:center;border-radius:9px;font-size:10px;font-weight:600}
+.gcnt-hi{background:#fdeaea;color:#c0392b}
+.gcnt-md{background:#fff5e0;color:#BA7517}
+.gcnt-lo{background:#e8f4f0;color:#1D9E75}
 </style>
 </head>
 <body>
@@ -86,6 +119,7 @@ textarea.cr{border:1px solid #e0e0e0;border-radius:6px;padding:4px 8px;font-size
   <button class="btn btn-primary" onclick="openModal()">+ Nouveau contrat</button>
 </div>
 
+<div id="gantt-section"></div>
 <div id="app"><div class="loading">Chargement…</div></div>
 
 <div class="overlay" id="overlay" onclick="closeModalOutside(event)">
@@ -167,6 +201,101 @@ function syncOff(){document.getElementById('sync').classList.remove('on');}
 function fmt(d){if(!d)return'—';return new Date(d).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});}
 function fmtShort(d){if(!d)return'—';const p=d.split?d.split('-'):d.toISOString().split('T')[0].split('-');return p[2]+'/'+p[1]+'/'+p[0];}
 
+
+
+// ── GANTT ──
+const GANTT_MONTHS=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+let ganttYear=new Date().getFullYear();
+
+function getGanttByMonth(c,year){
+  const map={};
+  const sv=getSuivi(c.id);
+  const sp=sv.passages||{};
+  (c.passages||[]).forEach((d,i)=>{
+    if(!d)return;
+    const dt=new Date(d);
+    if(dt.getFullYear()===year){
+      const m=dt.getMonth();
+      if(!map[m])map[m]=[];
+      map[m].push({idx:i,statut:(sp['p'+i]&&sp['p'+i].statut)||'prevu'});
+    }
+  });
+  return map;
+}
+
+function renderGantt(){
+  const nowG=new Date();
+  const curM=nowG.getMonth();
+  const curY=nowG.getFullYear();
+
+  const ybtns=[curY-1,curY,curY+1,curY+2].map(y=>`<button class="ybtn${y===ganttYear?' active':''}" onclick="ganttYear=${y};renderGantt()">${y}</button>`).join('');
+
+  let html=`<div class="gantt-section">
+    <div class="gantt-controls">
+      <div class="gantt-controls-left">${ybtns}</div>
+      <div class="gantt-legend">
+        <div class="gantt-leg"><div class="gantt-leg-dot"></div><span>Effectué</span></div>
+        <div class="gantt-leg"><div class="gantt-leg-dot" style="opacity:0.3"></div><span>À faire</span></div>
+      </div>
+    </div>
+    <table class="gtable"><thead><tr><th class="gcol-client">Client</th>`;
+
+  GANTT_MONTHS.forEach((m,i)=>{
+    const isCur=i===curM&&ganttYear===curY;
+    html+=`<th class="${isCur?'gcur-m':''}">${m}</th>`;
+  });
+  html+='<th>Total</th></tr></thead><tbody>';
+
+  CONTRATS.forEach(c=>{
+    const active=new Date(c.debut)<=new Date(ganttYear,11,31)&&new Date(c.fin)>=new Date(ganttYear,0,1);
+    const byMonth=getGanttByMonth(c,ganttYear);
+    const total=Object.values(byMonth).reduce((s,v)=>s+v.length,0);
+    const color=c.color||'#1D9E75';
+
+    html+=`<tr style="opacity:${active?1:0.25}">`;
+    html+=`<td class="gcol-client"><div class="gclient-name" title="${c.client||''}">${c.client||''}</div><div class="gclient-num">${c.num_contrat||''}</div></td>`;
+
+    for(let m=0;m<12;m++){
+      const isCur=m===curM&&ganttYear===curY;
+      const passes=byMonth[m]||[];
+      html+=`<td class="gcell${isCur?' gcur-m':''}"><div class="gdot-wrap">`;
+      if(passes.length===0){
+        html+=`<span class="gdot-none"></span>`;
+      } else if(passes.length===1){
+        const done=passes[0].statut==='fait';
+        html+=`<span class="gdot" style="background:${color};opacity:${done?1:0.3}" title="${done?'Effectué':'À faire'}"></span>`;
+      } else {
+        html+=`<span style="display:flex;gap:2px;align-items:center">`;
+        passes.forEach(p=>{
+          const done=p.statut==='fait';
+          html+=`<span class="gdot" style="background:${color};opacity:${done?1:0.3};width:8px;height:8px"></span>`;
+        });
+        html+=`</span>`;
+      }
+      html+='</div></td>';
+    }
+    html+=`<td class="gtotal-col">${active?total+'×':'—'}</td>`;
+    html+='</tr>';
+  });
+
+  html+='<tr class="gfoot-row"><td class="gcol-client">/ mois</td>';
+  for(let m=0;m<12;m++){
+    const isCur=m===curM&&ganttYear===curY;
+    const count=CONTRATS.filter(c=>{
+      const active=new Date(c.debut)<=new Date(ganttYear,11,31)&&new Date(c.fin)>=new Date(ganttYear,0,1);
+      return active&&(getGanttByMonth(c,ganttYear)[m]||[]).length>0;
+    }).length;
+    let badge='—';
+    if(count>=3) badge=`<span class="gcnt gcnt-hi">${count}</span>`;
+    else if(count===2) badge=`<span class="gcnt gcnt-md">${count}</span>`;
+    else if(count===1) badge=`<span class="gcnt gcnt-lo">${count}</span>`;
+    html+=`<td class="${isCur?'gcur-m':''}">${badge}</td>`;
+  }
+  html+='<td></td></tr></tbody></table></div>';
+
+  document.getElementById('gantt-section').innerHTML=html;
+}
+
 // ── LOAD ──
 async function loadAll(){
   syncOn();
@@ -180,6 +309,7 @@ async function loadAll(){
   }
   syncOff();
   renderAll();
+  renderGantt();
 }
 
 // ── SUPABASE CONTRAT ──
@@ -301,6 +431,7 @@ async function deleteContrat(dbId){
   CONTRATS=CONTRATS.filter(x=>x.id!==dbId);
   delete SUIVI[dbId];
   renderAll();
+  renderGantt();
 }
 
 // ── SUIVI ──
