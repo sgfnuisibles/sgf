@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Suivi Contrats SGF Nuisibles</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;font-size:14px;color:#1a1a1a;background:#f0f0ee;padding:16px}
+h1{font-size:17px;font-weight:700;margin-bottom:4px}
+.subtitle{font-size:12px;color:#888;margin-bottom:16px}
+.topbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.topbar h1{flex:1}
+.btn{padding:7px 16px;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:5px}
+.btn-primary{background:#1D9E75;color:#fff}
+.btn-primary:hover{background:#178a63}
+.btn-secondary{background:#f0f0ee;color:#555;border:1px solid #ddd}
+.btn-secondary:hover{background:#e5e5e3}
+.btn-pdf{background:#e63030;color:#fff}
+.btn-pdf:hover{background:#c42020}
+.btn-sm{padding:4px 10px;font-size:12px;border-radius:6px}
+.btn-danger{background:#fdeaea;color:#c0392b;border:1px solid #f5c6c6}
+
+/* Modal */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:100;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:#fff;border-radius:12px;padding:24px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.15)}
+.modal h2{font-size:15px;font-weight:700;margin-bottom:16px}
+.form-group{margin-bottom:12px}
+.form-group label{display:block;font-size:11px;font-weight:600;color:#888;margin-bottom:4px;text-transform:uppercase}
+.form-group input,.form-group select,.form-group textarea{width:100%;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-size:13px;background:#fafafa}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form-actions{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+.passages-list{border:1px solid #eee;border-radius:8px;overflow:hidden;margin-top:6px}
+.passages-list .pass-row{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #f0f0f0}
+.passages-list .pass-row:last-child{border-bottom:none}
+.add-link{font-size:12px;color:#1D9E75;cursor:pointer;margin-top:6px;display:inline-block}
+.rm-btn{background:none;border:none;color:#ccc;cursor:pointer;font-size:16px;padding:0 4px}
+.rm-btn:hover{color:#c0392b}
+
+/* Contrats */
+.contrat{background:#fff;border-radius:10px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,0.07);overflow:hidden}
+.contrat-header{display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer;user-select:none}
+.contrat-header:hover{background:#fafafa}
+.color-bar{width:5px;height:42px;border-radius:3px;flex-shrink:0}
+.contrat-title{flex:1}
+.contrat-title h2{font-size:14px;font-weight:700}
+.contrat-title .meta{font-size:11px;color:#888;margin-top:2px}
+.badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:10px;margin-right:4px}
+.arrow{font-size:11px;color:#bbb;transition:transform 0.2s}
+.arrow.open{transform:rotate(90deg)}
+.contrat-body{display:none;padding:0 16px 16px}
+.contrat-body.open{display:block}
+.section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#bbb;margin:16px 0 8px}
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;color:#aaa;font-weight:500;text-align:left;padding:5px 8px;border-bottom:1px solid #eee}
+td{padding:7px 8px;border-bottom:1px solid #f5f5f5;vertical-align:middle;font-size:13px}
+tr:last-child td{border-bottom:none}
+input[type=date]{border:1px solid #e0e0e0;border-radius:6px;padding:4px 6px;font-size:12px;background:#fafafa;width:130px}
+textarea.cr{border:1px solid #e0e0e0;border-radius:6px;padding:4px 8px;font-size:12px;background:#fafafa;width:100%;resize:vertical;min-height:34px}
+.status-sel{border:1px solid #e0e0e0;border-radius:6px;padding:4px 6px;font-size:12px;background:#fafafa}
+.save-btn{margin-top:14px;padding:7px 18px;background:#1D9E75;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600}
+.save-btn:hover{background:#178a63}
+.save-ok{font-size:12px;color:#1D9E75;margin-left:10px;display:none}
+.totaux{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+.tot{background:#f5f5f3;border-radius:8px;padding:8px 14px;font-size:12px}
+.tot strong{display:block;font-size:16px;font-weight:700}
+.header-actions{display:flex;gap:6px}
+.empty{text-align:center;padding:40px;color:#bbb;font-size:13px}
+.export-btn{margin-top:10px;padding:6px 14px;background:#f0f0ee;color:#555;border:1px solid #ddd;border-radius:8px;font-size:12px;cursor:pointer}
+.export-btn:hover{background:#e5e5e3}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <h1>SGF Nuisibles — Contrats</h1>
+    <div class="subtitle">Passages terrain &amp; échéancier de facturation</div>
+  </div>
+  <button class="btn btn-secondary" onclick="exportJSON()">💾 Sauvegarde</button>
+  <button class="btn btn-primary" onclick="openModal()">+ Nouveau contrat</button>
+</div>
+
+<div id="app"></div>
+
+<div class="overlay" id="overlay" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <h2 id="modal-title">Nouveau contrat</h2>
+    <input type="hidden" id="edit-id">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Numéro contrat</label>
+        <input type="text" id="f-num" placeholder="C-007">
+      </div>
+      <div class="form-group">
+        <label>Couleur</label>
+        <select id="f-color">
+          <option value="#1D9E75">Vert</option>
+          <option value="#378ADD">Bleu</option>
+          <option value="#7F77DD">Violet</option>
+          <option value="#D85A30">Corail</option>
+          <option value="#BA7517">Ambre</option>
+          <option value="#0F6E56">Vert foncé</option>
+          <option value="#E24B4A">Rouge</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Client</label>
+      <input type="text" id="f-client" placeholder="Nom du client">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Début du contrat</label>
+        <input type="date" id="f-debut">
+      </div>
+      <div class="form-group">
+        <label>Fin du contrat</label>
+        <input type="date" id="f-fin">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Montant annuel (€)</label>
+        <input type="number" id="f-montant" placeholder="0.00" step="0.01">
+      </div>
+      <div class="form-group">
+        <label>Fréquence de paiement</label>
+        <select id="f-freq-paiement">
+          <option value="annuel">Annuel (1 facture)</option>
+          <option value="semestriel">Semestriel (2 factures)</option>
+          <option value="trimestriel">Trimestriel (4 factures)</option>
+          <option value="mensuel">Mensuel (12 factures)</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Passages terrain prévus</label>
+      <div class="passages-list" id="passages-list"></div>
+      <span class="add-link" onclick="addPassageField()">+ Ajouter un passage</span>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveContrat()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const FREQ_NB={annuel:1,semestriel:2,trimestriel:4,mensuel:12};
+const FREQ_FR={annuel:'Annuel',semestriel:'Semestriel',trimestriel:'Trimestriel',mensuel:'Mensuel'};
+const LOGO='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+function loadData(){try{return JSON.parse(localStorage.getItem('sgf_contrats_v2')||'{}')}catch(e){return{}}}
+function saveData(d){localStorage.setItem('sgf_contrats_v2',JSON.stringify(d))}
+
+let DATA=loadData();
+if(!DATA.contracts)DATA.contracts=[];
+if(!DATA.suivi)DATA.suivi={};
+
+// Seed données initiales
+if(DATA.contracts.length===0){
+  DATA.contracts=[
+    {id:'C-001',client:'Suscillon',color:'#1D9E75',debut:'2026-01-28',fin:'2027-01-27',montant_annuel:940,freq_paiement:'trimestriel',passages:['2026-01-28','2026-04-28','2026-07-28','2026-10-28']},
+    {id:'C-002',client:'MAFE',color:'#378ADD',debut:'2025-10-13',fin:'2026-10-13',montant_annuel:1632,freq_paiement:'trimestriel',passages:['2025-10-13','2026-01-13','2026-04-13','2026-07-13']},
+    {id:'C-003',client:'Ecole Notre Dame Bourgoin',color:'#7F77DD',debut:'2026-03-12',fin:'2027-03-11',montant_annuel:876,freq_paiement:'annuel',passages:['2026-03-12','2026-09-12']},
+    {id:'C-004',client:'Collège St Joseph Bourgoin',color:'#D85A30',debut:'2026-03-11',fin:'2027-03-11',montant_annuel:591,freq_paiement:'annuel',passages:['2026-03-11','2026-09-11']},
+    {id:'C-005',client:'Médiathèque LTDP (moustiques)',color:'#BA7517',debut:'2026-05-07',fin:'2026-11-07',montant_annuel:928.8,freq_paiement:'annuel',passages:['2026-05-07','2026-07-07','2026-09-07']},
+    {id:'C-006',client:'Mairie le Passage',color:'#0F6E56',debut:'2025-09-29',fin:'2026-09-29',montant_annuel:280,freq_paiement:'annuel',passages:['2025-09-29']},
+  ];
+  saveData(DATA);
+}
+
+function getFactures(c){
+  const nb=FREQ_NB[c.freq_paiement]||1;
+  const montant=c.montant_annuel/nb;
+  const debut=new Date(c.debut);
+  const step=Math.round(12/nb);
+  return Array.from({length:nb},(_,i)=>{
+    const d=new Date(debut);
+    d.setMonth(d.getMonth()+i*step);
+    return{label:nb===1?'Annuel':`Éch. ${i+1}/${nb}`,date_prevue:d.toISOString().slice(0,10),montant};
+  });
+}
+
+function fmt(d){if(!d)return'—';return new Date(d).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});}
+
+// ── MODAL ──
+let passageFields=[];
+
+function openModal(id){
+  passageFields=[];
+  document.getElementById('edit-id').value='';
+  document.getElementById('f-num').value='';
+  document.getElementById('f-client').value='';
+  document.getElementById('f-debut').value='';
+  document.getElementById('f-fin').value='';
+  document.getElementById('f-montant').value='';
+  document.getElementById('f-freq-paiement').value='annuel';
+  document.getElementById('f-color').value='#1D9E75';
+  document.getElementById('modal-title').textContent='Nouveau contrat';
+  if(id){
+    const c=DATA.contracts.find(x=>x.id===id);
+    if(c){
+      document.getElementById('edit-id').value=c.id;
+      document.getElementById('f-num').value=c.id;
+      document.getElementById('f-client').value=c.client;
+      document.getElementById('f-debut').value=c.debut;
+      document.getElementById('f-fin').value=c.fin;
+      document.getElementById('f-montant').value=c.montant_annuel;
+      document.getElementById('f-freq-paiement').value=c.freq_paiement;
+      document.getElementById('f-color').value=c.color;
+      document.getElementById('modal-title').textContent='Modifier le contrat';
+      passageFields=[...(c.passages||[])];
+    }
+  }
+  renderPassageFields();
+  document.getElementById('overlay').classList.add('open');
+}
+
+function closeModal(){document.getElementById('overlay').classList.remove('open');}
+function closeModalOutside(e){if(e.target===document.getElementById('overlay'))closeModal();}
+
+function addPassageField(date=''){passageFields.push(date);renderPassageFields();}
+
+function renderPassageFields(){
+  document.getElementById('passages-list').innerHTML=passageFields.map((d,i)=>`
+    <div class="pass-row">
+      <span style="font-size:11px;color:#bbb;width:20px">${i+1}</span>
+      <input type="date" value="${d}" style="border:1px solid #eee;border-radius:6px;padding:4px 8px;font-size:13px;flex:1;background:#fafafa" onchange="passageFields[${i}]=this.value">
+      <button class="rm-btn" onclick="removePassage(${i})">×</button>
+    </div>
+  `).join('')||'<div style="padding:10px;font-size:12px;color:#ccc;text-align:center">Aucun passage</div>';
+}
+
+function removePassage(i){passageFields.splice(i,1);renderPassageFields();}
+
+function saveContrat(){
+  const num=document.getElementById('f-num').value.trim();
+  const client=document.getElementById('f-client').value.trim();
+  const debut=document.getElementById('f-debut').value;
+  const fin=document.getElementById('f-fin').value;
+  const montant=parseFloat(document.getElementById('f-montant').value)||0;
+  const freq=document.getElementById('f-freq-paiement').value;
+  const color=document.getElementById('f-color').value;
+  const editId=document.getElementById('edit-id').value;
+  if(!num||!client||!debut||!fin){alert('Merci de remplir tous les champs.');return;}
+  // Lire les valeurs directement depuis les inputs du DOM
+  const passInputs=document.querySelectorAll('#passages-list input[type=date]');
+  const passages=[...passInputs].map(inp=>inp.value).filter(Boolean);
+  const contrat={id:num,client,color,debut,fin,montant_annuel:montant,freq_paiement:freq,passages};
+  if(editId){
+    const idx=DATA.contracts.findIndex(x=>x.id===editId);
+    if(idx>=0)DATA.contracts[idx]=contrat;
+  } else {
+    if(DATA.contracts.find(x=>x.id===num)){alert('Ce numéro existe déjà.');return;}
+    DATA.contracts.push(contrat);
+  }
+  saveData(DATA);closeModal();renderAll();
+}
+
+function deleteContrat(id){
+  if(!confirm('Supprimer ce contrat ?'))return;
+  DATA.contracts=DATA.contracts.filter(x=>x.id!==id);
+  delete DATA.suivi[id];
+  saveData(DATA);renderAll();
+}
+
+// ── SUIVI ──
+function getSuivi(id){return DATA.suivi[id]||{passages:{},factures:{}};}
+
+function saveSuivi(cid){
+  if(!DATA.suivi[cid])DATA.suivi[cid]={passages:{},factures:{}};
+  document.querySelectorAll(`[data-cid="${cid}"]`).forEach(el=>{
+    const{type,key,field}=el.dataset;
+    if(!DATA.suivi[cid][type])DATA.suivi[cid][type]={};
+    if(!DATA.suivi[cid][type][key])DATA.suivi[cid][type][key]={};
+    DATA.suivi[cid][type][key][field]=el.value;
+  });
+  saveData(DATA);
+  const ok=document.getElementById('ok-'+cid);
+  ok.style.display='inline';
+  setTimeout(()=>{ok.style.display='none';renderAll();},1200);
+}
+
+// ── PDF ──
+function exportPassagePDF(cid, passageIndex){
+  const jsPDF=window.jspdf?window.jspdf.jsPDF:null;
+  if(!jsPDF){alert('PDF non disponible');return;}
+  const c=DATA.contracts.find(x=>x.id===cid);if(!c)return;
+  const sv=getSuivi(cid);
+  const sp=sv.passages||{};
+  const sf=sv.factures||{};
+  const key='p'+passageIndex;
+  const passData=sp[key]||{};
+  const date=passData.date||c.passages[passageIndex]||'';
+  const statut=passData.statut||'prevu';
+  const cr=passData.cr||'';
+  const factures=getFactures(c);
+
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const W=210,M=15;
+
+  // En-tête rouge
+  doc.setFillColor(230,48,48);doc.rect(0,0,W,30,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(14);doc.setTextColor(255,255,255);
+  doc.text('SGF NUISIBLES',M,12);
+  doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(255,200,200);
+  doc.text('Stop Guêpes-Frelons et Nuisibles',M,17);
+  doc.text('215 Montée des Pierres — 38730 Chélieu',M,22);
+  doc.text('contact@sgfnuisibles.fr',M,27);
+
+  // Client droite
+  doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(255,255,255);
+  doc.text(c.client,W-M,12,{align:'right'});
+  doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(255,200,200);
+  doc.text(c.id+' · '+FREQ_FR[c.freq_paiement],W-M,17,{align:'right'});
+  const fmtShort=d=>{if(!d)return'—';const p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0];};
+  doc.text(fmtShort(c.debut)+' → '+fmtShort(c.fin),W-M,22,{align:'right'});
+
+  // Titre passage
+  doc.setFillColor(248,248,248);doc.rect(0,30,W,18,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(16);doc.setTextColor(230,48,48);
+  doc.text('Compte-rendu de passage',M,43);
+  doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(120,120,120);
+  doc.text('Passage '+(passageIndex+1)+' · Date : '+fmt(date),M,49);
+  doc.text('Intervenant : Christophe Pons',W-M,43,{align:'right'});
+  doc.setFillColor(230,48,48);doc.rect(0,48,W,0.5,'F');
+
+  let y=58;
+
+  // Statut badge
+  const statutColors={fait:[46,168,74],prevu:[150,150,150]};
+  const statutLabels={fait:'✓ Effectué',prevu:'À faire'};
+  const sc=statutColors[statut]||[150,150,150];
+  doc.setFillColor(sc[0],sc[1],sc[2]);
+  doc.roundedRect(M,y,40,10,2,2,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(255,255,255);
+  doc.text(statutLabels[statut]||statut,M+20,y+7,{align:'center'});
+
+  // Infos passage
+  doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(40,40,40);
+  doc.text('Date d\'intervention : '+fmt(date),M+50,y+7);
+  y+=18;
+
+  // Compte-rendu
+  doc.setFillColor(250,250,250);doc.roundedRect(M,y,W-M*2,cr?Math.max(30,cr.length/3):30,2,2,'F');
+  doc.setDrawColor(220,220,220);doc.setLineWidth(0.3);doc.roundedRect(M,y,W-M*2,cr?Math.max(30,cr.length/3):30,2,2,'S');
+  doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(80,80,80);
+  doc.text('COMPTE-RENDU / REMARQUES',M+3,y+7);
+  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(40,40,40);
+  if(cr){
+    const lines=doc.splitTextToSize(cr,W-M*2-8);
+    doc.text(lines,M+3,y+14);
+    y+=Math.max(35,lines.length*5+18);
+  } else {
+    doc.setTextColor(180,180,180);doc.setFontSize(8);
+    doc.text('Aucun compte-rendu saisi',M+3,y+18);
+    y+=35;
+  }
+  y+=5;
+
+  // Échéancier facturation
+  doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(60,60,60);
+  doc.text('ÉCHÉANCIER DE FACTURATION',M,y);y+=5;
+
+  const factRows=factures.map((f,i)=>{
+    const fkey='f'+i;
+    const fd=sf[fkey]||{};
+    return[
+      f.label,
+      f.montant.toLocaleString('fr-FR',{minimumFractionDigits:2})+' €',
+      fmt(fd.date_prevue||f.date_prevue),
+      fmt(fd.date_envoi||''),
+      fmt(fd.date_encaissement||''),
+      fd.date_encaissement?'✓ Encaissé':'En attente'
+    ];
+  });
+
+  doc.autoTable({
+    startY:y,
+    head:[['Échéance','Montant','Date prévue','Envoi facture','Encaissement','Statut']],
+    body:factRows,
+    theme:'plain',
+    styles:{font:'helvetica',fontSize:8,cellPadding:{top:3,right:3,bottom:3,left:3},textColor:[40,40,40],fillColor:[255,255,255],lineColor:[220,220,220],lineWidth:0.3},
+    headStyles:{fillColor:[248,248,248],textColor:[120,120,120],fontStyle:'bold',fontSize:7.5},
+    alternateRowStyles:{fillColor:[252,252,252]},
+    didParseCell:function(data){
+      if(data.section==='body'&&data.column.index===5){
+        const isEnc=data.cell.raw==='✓ Encaissé';
+        data.cell.styles.textColor=isEnc?[46,168,74]:[180,180,180];
+        data.cell.styles.fontStyle='bold';
+      }
+    },
+    margin:{left:M,right:M}
+  });
+
+  y=doc.lastAutoTable.finalY+10;
+
+  // Totaux
+  const totalEnc=factures.reduce((s,f,i)=>{const k='f'+i;return sf[k]?.date_encaissement?s+f.montant:s;},0);
+  const totalAtt=factures.reduce((s,f)=>s+f.montant,0)-totalEnc;
+  doc.setFillColor(236,253,243);doc.roundedRect(M,y,55,18,2,2,'F');
+  doc.setDrawColor(46,168,74);doc.setLineWidth(0.3);doc.roundedRect(M,y,55,18,2,2,'S');
+  doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(46,168,74);
+  doc.text('Encaissé',M+3,y+6);
+  doc.setFontSize(13);doc.text(totalEnc.toLocaleString('fr-FR',{minimumFractionDigits:2})+' €',M+3,y+14);
+
+  doc.setFillColor(255,247,235);doc.roundedRect(M+60,y,55,18,2,2,'F');
+  doc.setDrawColor(186,117,23);doc.roundedRect(M+60,y,55,18,2,2,'S');
+  doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(186,117,23);
+  doc.text('En attente',M+63,y+6);
+  doc.setFontSize(13);doc.text(totalAtt.toLocaleString('fr-FR',{minimumFractionDigits:2})+' €',M+63,y+14);
+
+  // Footer
+  doc.setFillColor(230,48,48);doc.rect(0,285,W,12,'F');
+  doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(255,200,200);
+  doc.text('SGF Nuisibles — Stop Guêpes-Frelons et Nuisibles — contact@sgfnuisibles.fr',M,292);
+  doc.text('Page 1/1',W-M,292,{align:'right'});
+
+  doc.save('CR-'+c.client.replace(/\s+/g,'-')+'-passage'+(passageIndex+1)+'-'+date+'.pdf');
+}
+
+// ── EXPORT JSON ──
+function exportJSON(){
+  const blob=new Blob([JSON.stringify(DATA,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='sgf-contrats-sauvegarde-'+new Date().toISOString().split('T')[0]+'.json';
+  a.click();
+}
+
+// ── RENDER ──
+function renderContrat(c){
+  const sv=getSuivi(c.id);
+  const sp=sv.passages||{};
+  const sf=sv.factures||{};
+  const factures=getFactures(c);
+
+  // Passages
+  const passRows=(c.passages||[]).map((d,i)=>{
+    const key='p'+i;
+    const date=sp[key]?.date||d;
+    const statut=sp[key]?.statut||'prevu';
+    const cr=sp[key]?.cr||'';
+    return`<tr>
+      <td style="width:24px;text-align:center;color:#ccc;font-size:11px">${i+1}</td>
+      <td><input type="date" value="${date}" data-cid="${c.id}" data-type="passages" data-key="${key}" data-field="date"></td>
+      <td><select class="status-sel" data-cid="${c.id}" data-type="passages" data-key="${key}" data-field="statut">
+        <option value="prevu" ${statut==='prevu'?'selected':''}>À faire</option>
+        <option value="fait" ${statut==='fait'?'selected':''}>✓ Fait</option>
+      </select></td>
+      <td><textarea class="cr" rows="1" placeholder="Compte-rendu…" data-cid="${c.id}" data-type="passages" data-key="${key}" data-field="cr">${cr}</textarea></td>
+      <td><button class="btn btn-pdf btn-sm" onclick="exportPassagePDF('${c.id}',${i})">📄 PDF</button></td>
+    </tr>`;
+  }).join('');
+
+  // Factures
+  const factRows=factures.map((f,i)=>{
+    const key='f'+i;
+    const dp=sf[key]?.date_prevue||f.date_prevue;
+    const de=sf[key]?.date_envoi||'';
+    const den=sf[key]?.date_encaissement||'';
+    return`<tr>
+      <td style="color:#666;white-space:nowrap">${f.label}</td>
+      <td style="font-weight:600;white-space:nowrap">${f.montant.toLocaleString('fr-FR',{minimumFractionDigits:2})} €</td>
+      <td><input type="date" value="${dp}" data-cid="${c.id}" data-type="factures" data-key="${key}" data-field="date_prevue"></td>
+      <td><input type="date" value="${de}" data-cid="${c.id}" data-type="factures" data-key="${key}" data-field="date_envoi"></td>
+      <td><input type="date" value="${den}" data-cid="${c.id}" data-type="factures" data-key="${key}" data-field="date_encaissement"></td>
+    </tr>`;
+  }).join('');
+
+  const totalEnc=factures.reduce((s,f,i)=>sf['f'+i]?.date_encaissement?s+f.montant:s,0);
+  const totalAtt=factures.reduce((s,f)=>s+f.montant,0)-totalEnc;
+  const nbFait=(c.passages||[]).filter((_,i)=>(sp['p'+i]?.statut||'prevu')==='fait').length;
+
+  return`<div class="contrat">
+    <div class="contrat-header" onclick="toggle('${c.id}')">
+      <div class="color-bar" style="background:${c.color}"></div>
+      <div class="contrat-title">
+        <h2>${c.client}</h2>
+        <div class="meta">
+          <span class="badge" style="background:${c.color}22;color:${c.color}">${c.id}</span>
+          ${fmt(c.debut)} → ${fmt(c.fin)} &nbsp;·&nbsp; ${c.montant_annuel.toLocaleString('fr-FR',{minimumFractionDigits:2})} €/an
+          &nbsp;·&nbsp; ${nbFait}/${(c.passages||[]).length} passages effectués
+        </div>
+      </div>
+      <div class="header-actions" onclick="event.stopPropagation()">
+        <button class="btn btn-secondary btn-sm" onclick="openModal('${c.id}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteContrat('${c.id}')">🗑</button>
+      </div>
+      <span class="arrow" id="arrow-${c.id}" style="margin-left:8px">▶</span>
+    </div>
+    <div class="contrat-body" id="body-${c.id}">
+      <div class="section-title">Passages terrain</div>
+      <div style="overflow-x:auto"><table>
+        <thead><tr><th>#</th><th>Date estimée</th><th>Statut</th><th>Compte-rendu / Remarque</th><th>PDF</th></tr></thead>
+        <tbody>${passRows}</tbody>
+      </table></div>
+
+      <div class="section-title" style="margin-top:18px">Échéancier de facturation</div>
+      <div style="overflow-x:auto"><table>
+        <thead><tr><th>Échéance</th><th>Montant</th><th>Date prévue</th><th>Date envoi facture</th><th>Date encaissement</th></tr></thead>
+        <tbody>${factRows}</tbody>
+      </table></div>
+
+      <div class="totaux">
+        <div class="tot"><strong style="color:#1D9E75">${totalEnc.toLocaleString('fr-FR',{minimumFractionDigits:2})} €</strong>Encaissé</div>
+        <div class="tot"><strong style="color:#BA7517">${totalAtt.toLocaleString('fr-FR',{minimumFractionDigits:2})} €</strong>En attente</div>
+      </div>
+      <button class="save-btn" onclick="saveSuivi('${c.id}')">Enregistrer</button>
+      <span class="save-ok" id="ok-${c.id}">✓ Sauvegardé</span>
+    </div>
+  </div>`;
+}
+
+function toggle(id){
+  const opens={};
+  DATA.contracts.forEach(c=>{opens[c.id]=document.getElementById('body-'+c.id)?.classList.contains('open');});
+  document.getElementById('body-'+id).classList.toggle('open');
+  document.getElementById('arrow-'+id).classList.toggle('open');
+}
+
+function renderAll(){
+  const opens={};
+  DATA.contracts.forEach(c=>{opens[c.id]=document.getElementById('body-'+c.id)?.classList.contains('open');});
+  document.getElementById('app').innerHTML=DATA.contracts.length
+    ?DATA.contracts.map(renderContrat).join('')
+    :'<div class="empty">Aucun contrat — cliquez sur "+ Nouveau contrat"</div>';
+  DATA.contracts.forEach(c=>{
+    if(opens[c.id]){
+      document.getElementById('body-'+c.id)?.classList.add('open');
+      document.getElementById('arrow-'+c.id)?.classList.add('open');
+    }
+  });
+}
+
+renderAll();
+</script>
+</body>
+</html>
