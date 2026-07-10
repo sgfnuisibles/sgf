@@ -2704,10 +2704,11 @@ function renderFreloTable(){
     h+='<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--tx2)">'+(s.adresse||'')+'</td>';
     h+='<td style="font-size:12px;color:var(--tx2)">'+(s.date_intervention||'—')+'</td>';
     var hVal=s.hauteur!==null&&s.hauteur!==undefined?s.hauteur+'m':'—';
-    var pVal=frelon_prix(s.hauteur);
+    var pAuto=frelon_prix(s.hauteur);
+    var pManuel=s.prix_manuel!==null&&s.prix_manuel!==undefined?s.prix_manuel:'';
     var pColor=s.hauteur<=3?'var(--grn)':s.hauteur<=9?'var(--blu)':s.hauteur<=20?'var(--yel)':'var(--acc)';
     h+='<td style="font-size:12px;color:var(--tx2);text-align:center">'+hVal+'</td>';
-    h+='<td style="font-size:12px;font-weight:700;color:'+pColor+';text-align:center">'+pVal+'</td>';
+    h+='<td style="text-align:center"><input type="number" id="pm_'+s.id+'" value="'+(pManuel||'')+'" placeholder="'+pAuto+'" style="width:58px;border:1px solid var(--bord);border-radius:6px;padding:2px 5px;font-size:12px;font-weight:700;color:'+pColor+';background:var(--surf2);text-align:center" oninput="autoSaveFrelon('+s.id+')"></td>';
     h+='<td><select style="font-size:12px;padding:3px 6px;border-radius:7px;'+sfStyle+';width:100%;font-family:DM Sans,sans-serif" onchange="updateFrelon('+s.id+',\'statut_facture\',this.value)">';
     h+='<option value="" '+(sf===''?'selected':'')+'>—</option>';
     h+='<option value="a_faire" '+(sf==='a_faire'?'selected':'')+'>🟠 À faire</option>';
@@ -2754,11 +2755,14 @@ function autoSaveFrelon(id){
     else if(inp2)s.num_facture=inp2.value.trim();
     if(de)s.date_envoi_facture=de.value||null;
     if(dp)s.date_paiement=dp.value||null;
+    var pmEl=document.getElementById('pm_'+id);
+    if(pmEl){var pmVal=parseFloat(pmEl.value);s.prix_manuel=isNaN(pmVal)?null:pmVal;}
     db.from('signalements_frelons').update({
       num_facture:s.num_facture||'',
       statut_facture:s.statut_facture||'',
       date_envoi_facture:s.date_envoi_facture||null,
-      date_paiement:s.date_paiement||null
+      date_paiement:s.date_paiement||null,
+      prix_manuel:s.prix_manuel||null
     }).eq('id',id).then(function(){showAutoSave();});
   },800);
 }
@@ -2907,7 +2911,7 @@ function renderFreloFactures(container){
 
   // Stats rapides
   var totalHT=0;
-  signalements.forEach(function(s){totalHT+=frelon_montant(s.hauteur);});
+  signalements.forEach(function(s){totalHT+=frelon_montant(s);});
   var nbFactures=keys.filter(function(k){return k!=='__sans_facture__';}).length;
 
   h+='<div style="display:flex;gap:6px;margin-bottom:14px">';
@@ -2923,7 +2927,7 @@ function renderFreloFactures(container){
   keys.forEach(function(nf){
     var rows=grouped[nf];
     var isSans=nf==='__sans_facture__';
-    var total=rows.reduce(function(acc,s){return acc+frelon_montant(s.hauteur);},0);
+    var total=rows.reduce(function(acc,s){return acc+frelon_montant(s);},0);
 
     // Statut dominant
     var allEnv=rows.every(function(s){return s.statut_facture==='envoyee';});
@@ -2983,7 +2987,11 @@ function renderFreloFactures(container){
   container.innerHTML=h;
 }
 
-function frelon_montant(h){
+function frelon_montant(s){
+  // Accepte un objet signalement ou juste une hauteur
+  var pm = typeof s === 'object' ? s.prix_manuel : null;
+  if(pm!==null&&pm!==undefined&&pm!=='')return parseFloat(pm)||0;
+  var h = typeof s === 'object' ? s.hauteur : s;
   if(h===null||h===undefined||h==='')return 0;
   h=parseFloat(h);
   if(isNaN(h))return 0;
