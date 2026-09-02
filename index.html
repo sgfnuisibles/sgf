@@ -897,6 +897,10 @@ function openTerrain(passageId){
   if(isRO&&pa.signature)h+='<div style="display:flex;flex-direction:column;align-items:center;gap:2px"><img src="'+pa.signature+'" style="height:32px;border:1px solid var(--bord);border-radius:6px;background:#fff">'+(pa.signataire?'<span style="font-size:9px;color:var(--tx3)">'+pa.signataire+'</span>':'')+'</div>';
   h+='</div></div>';
 
+  // Commentaire final du passage — toujours visible et éditable
+  h+='<div style="margin:10px 0 14px"><label style="font-size:10px;font-weight:700;color:var(--tx3);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:5px">💬 Commentaire de la visite</label>';
+  h+='<textarea class="fta" id="f-passage-notes" rows="2" placeholder="Observations générales, recommandations..." style="width:100%;box-sizing:border-box'+(isRO?';opacity:.75':'')+'" onchange="saveNotesPassage('+passageId+',this.value)">'+(pa.notes||'')+'</textarea></div>';
+
   // Tabs plans
   h+='<div class="plan-tabs">';
   cPlans.forEach(function(pl){
@@ -1249,6 +1253,15 @@ function setNote(pid,note,passageId){
   dbUpdateRes(ex,{note:note},passageId,pid,null);
 }
 
+async function saveNotesPassage(passageId,notes){
+  var pa=passages.find(function(p){return p.id===passageId;});if(!pa)return;
+  pa.notes=notes;
+  syncOn();
+  await db.from('passages').update({notes:notes}).eq('id',passageId);
+  syncOff();
+  toast('💾 Commentaire enregistré');
+}
+
 function deletePassage(passageId){
   if(!confirm('Supprimer ce passage et tous ses résultats ?'))return;
   syncOn();
@@ -1265,10 +1278,9 @@ async function terminer(passageId){
   var pa=passages.find(function(p){return p.id===passageId;});if(!pa)return;
   var actifs=gPassRes(passageId).filter(function(r){return r.statut==='consomme'||r.statut==='actif';}).length;
   if(!confirm(actifs>0?'Terminer ? '+actifs+' poste(s) actif(s) !':'Terminer ce passage ?'))return;
-  var notes=prompt('Notes de visite (optionnel) :')||'';;
   syncOn();
-  await db.from('passages').update({statut:'termine',notes:notes}).eq('id',passageId);
-  pa.statut='termine';pa.notes=notes;syncOff();
+  await db.from('passages').update({statut:'termine'}).eq('id',passageId);
+  pa.statut='termine';syncOff();
   toast(actifs>0?'⚠️ Passage terminé — '+actifs+' actif(s)':'✅ Passage terminé !');
   openTerrain(passageId);
 }
