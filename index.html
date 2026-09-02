@@ -1982,11 +1982,11 @@ function exportPDF(passageId){
         headStyles:{fillColor:[248,248,248],textColor:[120,120,120],fontStyle:'bold',fontSize:7},
         alternateRowStyles:{fillColor:[252,252,252]},
         columnStyles:{0:{cellWidth:22},1:{cellWidth:22},2:{cellWidth:22},3:{cellWidth:20},4:{cellWidth:26},5:{cellWidth:14},6:{cellWidth:60}},
-        didDrawCell:function(data){
+        didParseCell:function(data){
           if(data.section==='body'&&data.column.index===2){
             var c2={'Sain':[46,168,74],'Consommé':[230,48,48],'Ré-alimenté':[59,130,246],'Manquant':[230,48,48],'Contrôlé':[138,148,136],'Absent':[150,150,150],'Non vér.':[150,150,150]};
             var col=c2[data.cell.raw];
-            if(col){doc.setTextColor(col[0],col[1],col[2]);doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.text(data.cell.raw,data.cell.x+data.cell.padding('left'),data.cell.y+data.cell.height/2+2.5);}
+            if(col){data.cell.styles.textColor=col;data.cell.styles.fontStyle='bold';}
           }
         },
         margin:{left:M,right:M}});
@@ -2044,70 +2044,83 @@ function exportPDF(passageId){
     doc.text('Zone : '+zone,M+3,gy+5);
     gy+=9;
 
-    // Postes 2 per row like Stann
-    var col=0;var rowH=28;
-    zp.forEach(function(p){
-      var r=res.find(function(x){return x.poste_id===p.id;});
-      var s=r?r.statut:null;
-      var ptype=pt(p.type_id);
-      var x=col===0?M:M+(W-M*2)/2+2;
-      var cardW=(W-M*2)/2-2;
+    // Postes 2 par ligne — hauteur de carte calculée dynamiquement pour ne jamais tronquer une note
+    var cardW=(W-M*2)/2-2;
+    for(var pi=0;pi<zp.length;pi+=2){
+      var pair=[zp[pi],zp[pi+1]].filter(Boolean);
+      var cardsInfo=pair.map(function(p){
+        var r=res.find(function(x){return x.poste_id===p.id;});
+        var fieldCount=0;
+        if(r&&r.produit)fieldCount++;
+        if(r&&r.substance&&r.produit==='toxique')fieldCount++;
+        if(r&&r.conso)fieldCount++;
+        var detailsBottom=fieldCount>0?(18+(fieldCount-1)*4):13;
+        var noteLines=r&&r.note?doc.splitTextToSize(r.note,cardW-6):[];
+        var noteStartY=detailsBottom+(fieldCount>0?5:3);
+        var neededH=noteLines.length>0?(noteStartY+noteLines.length*3.2+2):(detailsBottom+5);
+        return{p:p,r:r,fieldCount:fieldCount,noteLines:noteLines,noteStartY:noteStartY,neededH:Math.max(28,neededH)};
+      });
+      var rowH=Math.max.apply(null,cardsInfo.map(function(ci){return ci.neededH;}));
       if(gy+rowH>280){doc.addPage();gy=14;}
-      // Card bg
-      var bgc={sain:[236,253,243],ok:[236,253,243],consomme:[255,237,237],actif:[255,237,237],realimente:[255,247,235],remplace:[255,247,235],absent:[248,248,248],manquant:[255,237,237]};
-      var bdc={sain:[46,168,74],ok:[46,168,74],consomme:[230,48,48],actif:[230,48,48],realimente:[249,115,22],remplace:[249,115,22],absent:[200,200,200],manquant:[230,48,48]};
-      var bg=bgc[s]||[252,252,252];var bd=bdc[s]||[220,220,220];
-      doc.setFillColor(bg[0],bg[1],bg[2]);doc.roundedRect(x,gy,cardW,rowH,2,2,'F');
-      doc.setDrawColor(bd[0],bd[1],bd[2]);doc.setLineWidth(0.4);doc.roundedRect(x,gy,cardW,rowH,2,2,'S');
-      // Poste title + type
-      doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(40,40,40);
-      doc.text(p.label,x+3,gy+6);
-      doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(120,120,120);
-      doc.text(ptype.label,x+3,gy+11);
-      // Statut badge
-      var sc={sain:[46,168,74],ok:[46,168,74],consomme:[230,48,48],actif:[230,48,48],realimente:[59,130,246],remplace:[249,115,22],manquant:[230,48,48],absent:[150,150,150],controle:[138,148,136]};
-      var sl2={sain:'SAIN',ok:'SAIN',consomme:'CONSOMMÉ',actif:'CONSOMMÉ',realimente:'RÉ-ALIM.',remplace:'RÉ-ALIM.',manquant:'MANQUANT',absent:'ABSENT',controle:'CONTRÔLÉ'};
-      if(s){
-        var sc2=sc[s]||[150,150,150];
-        doc.setFillColor(sc2[0],sc2[1],sc2[2]);
-        doc.roundedRect(x+cardW-25,gy+2,23,6,1,1,'F');
-        doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(255,255,255);
-        doc.text(sl2[s]||s,x+cardW-13.5,gy+6.5,{align:'center'});
-      }
-      // Separator
-      doc.setDrawColor(220,220,220);doc.setLineWidth(0.2);doc.line(x+2,gy+13,x+cardW-2,gy+13);
-      // Details
-      var dy=gy+18;
-      if(r&&r.produit){
-        doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(100,100,100);
-        doc.text('Produit :',x+3,dy);
-        doc.setFont('helvetica','bold');doc.setTextColor(40,40,40);
-        doc.text(pl[r.produit]||r.produit,x+22,dy);
-        dy+=4;
-      }
-      if(r&&r.substance&&r.produit==='toxique'){
-        doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(100,100,100);
-        doc.text('Substance :',x+3,dy);
-        doc.setFont('helvetica','bold');doc.setTextColor(40,40,40);
-        doc.text(subl[r.substance]||r.substance,x+22,dy);
-        dy+=4;
-      }
-      if(r&&r.conso){
-        doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(100,100,100);
-        doc.text('Conso :',x+3,dy);
-        doc.setFont('helvetica','bold');doc.setTextColor(40,40,40);
-        doc.text(r.conso+'%',x+22,dy);
-      }
-      if(r&&r.note){
-        doc.setFont('helvetica','italic');doc.setFontSize(6.5);doc.setTextColor(100,100,100);
-        var noteLines=doc.splitTextToSize(r.note,cardW-6);
-        doc.text(noteLines[0],x+3,gy+rowH-3);
-      }
-      col++;
-      if(col===2){col=0;gy+=rowH+3;}
-    });
-    if(col===1){gy+=rowH+3;col=0;}
-    gy+=3;
+      cardsInfo.forEach(function(ci,idx){
+        var p=ci.p,r=ci.r;
+        var s=r?r.statut:null;
+        var ptype=pt(p.type_id);
+        var x=idx===0?M:M+(W-M*2)/2+2;
+        // Card bg
+        var bgc={sain:[236,253,243],ok:[236,253,243],consomme:[255,237,237],actif:[255,237,237],realimente:[255,247,235],remplace:[255,247,235],absent:[248,248,248],manquant:[255,237,237]};
+        var bdc={sain:[46,168,74],ok:[46,168,74],consomme:[230,48,48],actif:[230,48,48],realimente:[249,115,22],remplace:[249,115,22],absent:[200,200,200],manquant:[230,48,48]};
+        var bg=bgc[s]||[252,252,252];var bd=bdc[s]||[220,220,220];
+        doc.setFillColor(bg[0],bg[1],bg[2]);doc.roundedRect(x,gy,cardW,rowH,2,2,'F');
+        doc.setDrawColor(bd[0],bd[1],bd[2]);doc.setLineWidth(0.4);doc.roundedRect(x,gy,cardW,rowH,2,2,'S');
+        // Poste title + type
+        doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(40,40,40);
+        doc.text(p.label,x+3,gy+6);
+        doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(120,120,120);
+        doc.text(ptype.label,x+3,gy+11);
+        // Statut badge
+        var sc={sain:[46,168,74],ok:[46,168,74],consomme:[230,48,48],actif:[230,48,48],realimente:[59,130,246],remplace:[249,115,22],manquant:[230,48,48],absent:[150,150,150],controle:[138,148,136]};
+        var sl2={sain:'SAIN',ok:'SAIN',consomme:'CONSOMMÉ',actif:'CONSOMMÉ',realimente:'RÉ-ALIM.',remplace:'RÉ-ALIM.',manquant:'MANQUANT',absent:'ABSENT',controle:'CONTRÔLÉ'};
+        if(s){
+          var sc2=sc[s]||[150,150,150];
+          doc.setFillColor(sc2[0],sc2[1],sc2[2]);
+          doc.roundedRect(x+cardW-25,gy+2,23,6,1,1,'F');
+          doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(255,255,255);
+          doc.text(sl2[s]||s,x+cardW-13.5,gy+6.5,{align:'center'});
+        }
+        // Separator
+        doc.setDrawColor(220,220,220);doc.setLineWidth(0.2);doc.line(x+2,gy+13,x+cardW-2,gy+13);
+        // Details
+        var dy=gy+18;
+        if(r&&r.produit){
+          doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(100,100,100);
+          doc.text('Produit :',x+3,dy);
+          doc.setFont('helvetica','bold');doc.setTextColor(40,40,40);
+          doc.text(pl[r.produit]||r.produit,x+22,dy);
+          dy+=4;
+        }
+        if(r&&r.substance&&r.produit==='toxique'){
+          doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(100,100,100);
+          doc.text('Substance :',x+3,dy);
+          doc.setFont('helvetica','bold');doc.setTextColor(40,40,40);
+          doc.text(subl[r.substance]||r.substance,x+22,dy);
+          dy+=4;
+        }
+        if(r&&r.conso){
+          doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(100,100,100);
+          doc.text('Conso :',x+3,dy);
+          doc.setFont('helvetica','bold');doc.setTextColor(40,40,40);
+          doc.text(r.conso+'%',x+22,dy);
+        }
+        if(ci.noteLines.length>0){
+          doc.setFont('helvetica','italic');doc.setFontSize(6.5);doc.setTextColor(100,100,100);
+          ci.noteLines.forEach(function(line,li){
+            doc.text(line,x+3,gy+ci.noteStartY+li*3.2);
+          });
+        }
+      });
+      gy+=rowH+3;
+    }
   });
 
   // ═══════════════════════════
