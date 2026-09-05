@@ -1891,13 +1891,15 @@ function exportPDF(passageId){
 
   // Notes
   if(pa.notes){
-    doc.setFillColor(255,248,248);doc.roundedRect(M,y,W-M*2,18,2,2,'F');
-    doc.setDrawColor(230,48,48);doc.setLineWidth(0.3);doc.roundedRect(M,y,W-M*2,18,2,2,'S');
+    var notesLines=doc.splitTextToSize(pa.notes,W-M*2-8);
+    var notesBoxH=Math.max(18,14+notesLines.length*4.6+6);
+    doc.setFillColor(255,248,248);doc.roundedRect(M,y,W-M*2,notesBoxH,2,2,'F');
+    doc.setDrawColor(230,48,48);doc.setLineWidth(0.3);doc.roundedRect(M,y,W-M*2,notesBoxH,2,2,'S');
     doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(230,48,48);
-    doc.text('Commentaires :',M+3,y+6);
-    doc.setFont('helvetica','normal');doc.setTextColor(40,40,40);
-    doc.text(doc.splitTextToSize(pa.notes,W-M*2-6),M+3,y+12);
-    y+=22;
+    doc.text('Commentaires :',M+3,y+7);
+    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(40,40,40);
+    doc.text(notesLines,M+3,y+14,{lineHeightFactor:1.35});
+    y+=notesBoxH+4;
   }
 
   // ═══════════════════════════
