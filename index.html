@@ -2883,7 +2883,7 @@ function importFretonCSV(input){
       if(!dateStr)continue;
       var yearMatch=dateStr.match(/(\d{4})/);
       if(!yearMatch||parseInt(yearMatch[1])<2026)continue;
-      var exists=signalements.find(function(s){return s.num_signalement===num;});
+      var exists=signalements.find(function(s){return String(s.num_signalement)===String(num);});
       if(exists)continue;
       toInsert.push({
         num_signalement:num,
@@ -3001,7 +3001,7 @@ function renderFreloFactures(container){
 
     // Lignes interventions
     rows.forEach(function(s){
-      var prix=frelon_prix(s.hauteur);
+      var prix=frelon_montant(s)+'€';
       var sf=s.statut_facture||'';
       h+='<div style="padding:8px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(0,0,0,.04);font-size:13px">';
       h+='<div style="display:flex;gap:10px;align-items:center">';
