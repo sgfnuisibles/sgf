@@ -2695,6 +2695,7 @@ function renderFrelons(){
   h+='<th style="width:80px">N° fact.</th>';
   h+='<th style="width:80px">Envoi</th>';
   h+='<th style="width:80px">Paiement</th>';
+  h+='<th style="width:36px"></th>';
   h+='</tr></thead>';
   h+='<tbody id="frelon-tbody"></tbody></table></div>';
 
@@ -2726,7 +2727,7 @@ function renderFreloTable(){
 
   var tbody=document.getElementById('frelon-tbody');
   if(!tbody)return;
-  if(rows.length===0){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--tx3)">Aucun résultat — importez votre CSV</td></tr>';return;}
+  if(rows.length===0){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--tx3)">Aucun résultat — importez votre CSV</td></tr>';return;}
 
   var h='';
   rows.forEach(function(s,i){
@@ -2763,6 +2764,7 @@ function renderFreloTable(){
     h+='<td><input type="text" id="nf_'+s.id+'" value="'+(s.num_facture||'')+'" placeholder="F-2026-001" class="fi" style="font-size:11px;padding:2px 5px;height:auto;width:100%" oninput="autoSaveFrelon('+s.id+')"></td>';
     h+='<td style="'+alertRelance+'"><input type="date" id="de_'+s.id+'" value="'+(s.date_envoi_facture||'')+'" class="fi" style="font-size:11px;padding:2px 4px;height:auto;width:100%" onchange="updateFrelon('+s.id+',\'date_envoi_facture\',this.value)"></td>';
     h+='<td><input type="date" id="dp_'+s.id+'" value="'+(s.date_paiement||'')+'" class="fi" style="font-size:11px;padding:2px 4px;height:auto;width:100%" onchange="updateFrelon('+s.id+',\'date_paiement\',this.value)"></td>';
+    h+='<td style="text-align:center"><button onclick="deleteFrelon('+s.id+',\''+(s.num_signalement||'')+'\')" title="Supprimer" style="background:rgba(230,48,48,.1);color:var(--acc);border:1px solid rgba(230,48,48,.2);border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:13px">🗑️</button></td>';
     h+='</tr>';
   });
   tbody.innerHTML=h;
@@ -2777,6 +2779,17 @@ function updateFrelon(id,field,val){
     showAutoSave();
   });
   if(field==='statut_facture')renderFreloTable();
+}
+
+function deleteFrelon(id,num){
+  if(!confirm('Supprimer le signalement n°'+num+' ?\nCette action est définitive.'))return;
+  syncOn();
+  db.from('signalements_frelons').delete().eq('id',id).then(function(){
+    signalements=signalements.filter(function(x){return x.id!==id;});
+    syncOff();
+    toast('🗑️ Signalement '+num+' supprimé');
+    renderFrelons();
+  });
 }
 
 var autoSaveTimer=null;
