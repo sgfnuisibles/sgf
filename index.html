@@ -2876,8 +2876,9 @@ function importFretonCSV(input){
       var cols=rows[i];
       var num=iNum>=0?(cols[iNum]||'').trim():'';
       if(!num||isNaN(parseInt(num)))continue;
-      // Exclusion manuelle de signalements spécifiques
-      if(num==='76786')continue;
+      // Exclusion manuelle de signalements spécifiques (ajouter les n° ici)
+      var EXCLUS=['76786','78116','75580'];
+      if(EXCLUS.indexOf(num)>=0)continue;
       // Ignorer si pas de date ou antérieur à 2026
       var dateStr=iDate>=0?(cols[iDate]||''):'';
       if(!dateStr)continue;
