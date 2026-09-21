@@ -2736,6 +2736,7 @@ function renderFreloTable(){
     var sfStyle='';
     if(sf==='a_faire')sfStyle='background:rgba(249,115,22,.1);color:var(--ora);border:1px solid rgba(249,115,22,.25)';
     else if(sf==='envoyee')sfStyle='background:rgba(46,168,74,.1);color:var(--grn);border:1px solid rgba(46,168,74,.25)';
+    else if(sf==='paye')sfStyle='background:rgba(59,130,246,.1);color:#3b82f6;border:1px solid rgba(59,130,246,.25)';
     else sfStyle='background:var(--surf2);color:var(--tx3);border:1px solid var(--bord)';
     h+='<tr style="'+bg+';border-bottom:1px solid var(--bord)">';
     h+='<td style="font-weight:700;font-family:DM Mono,monospace;font-size:12px">'+(s.num_signalement||'')+'</td>';
@@ -2752,6 +2753,7 @@ function renderFreloTable(){
     h+='<option value="" '+(sf===''?'selected':'')+'>—</option>';
     h+='<option value="a_faire" '+(sf==='a_faire'?'selected':'')+'>🟠 À faire</option>';
     h+='<option value="envoyee" '+(sf==='envoyee'?'selected':'')+'>✅ Envoyée</option>';
+    h+='<option value="paye" '+(sf==='paye'?'selected':'')+'>💰 Payée</option>';
     h+='<option value="non_concerne" '+(sf==='non_concerne'?'selected':'')+'>— Non concerné</option>';
     h+='</select></td>';
 
@@ -2763,7 +2765,7 @@ function renderFreloTable(){
     }
     h+='<td><input type="text" id="nf_'+s.id+'" value="'+(s.num_facture||'')+'" placeholder="F-2026-001" class="fi" style="font-size:11px;padding:2px 5px;height:auto;width:100%" oninput="autoSaveFrelon('+s.id+')"></td>';
     h+='<td style="'+alertRelance+'"><input type="date" id="de_'+s.id+'" value="'+(s.date_envoi_facture||'')+'" class="fi" style="font-size:11px;padding:2px 4px;height:auto;width:100%" onchange="updateFrelon('+s.id+',\'date_envoi_facture\',this.value)"></td>';
-    h+='<td><input type="date" id="dp_'+s.id+'" value="'+(s.date_paiement||'')+'" class="fi" style="font-size:11px;padding:2px 4px;height:auto;width:100%" onchange="updateFrelon('+s.id+',\'date_paiement\',this.value)"></td>';
+    h+='<td><input type="date" id="dp_'+s.id+'" value="'+(s.date_paiement||'')+'" class="fi" style="font-size:11px;padding:2px 4px;height:auto;width:100%" onchange="updateFrelonPaiement('+s.id+',this.value)"></td>';
     h+='<td style="text-align:center"><button onclick="deleteFrelon('+s.id+',\''+(s.num_signalement||'')+'\')" title="Supprimer" style="background:rgba(230,48,48,.1);color:var(--acc);border:1px solid rgba(230,48,48,.2);border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:13px">🗑️</button></td>';
     h+='</tr>';
   });
@@ -2778,7 +2780,19 @@ function updateFrelon(id,field,val){
   db.from('signalements_frelons').update(upd).eq('id',id).then(function(){
     showAutoSave();
   });
-  if(field==='statut_facture')renderFreloTable();
+  if(field==='statut_facture')renderFrelons();
+}
+
+function updateFrelonPaiement(id,val){
+  var s=signalements.find(function(x){return x.id===id;});
+  if(!s)return;
+  s.date_paiement=val||null;
+  var upd={date_paiement:val||null};
+  if(val){s.statut_facture='paye';upd.statut_facture='paye';}
+  db.from('signalements_frelons').update(upd).eq('id',id).then(function(){
+    showAutoSave();
+  });
+  renderFrelons();
 }
 
 function deleteFrelon(id,num){
@@ -3017,20 +3031,22 @@ function renderFreloFactures(container){
     rows.forEach(function(s){
       var prix=frelon_montant(s)+'€';
       var sf=s.statut_facture||'';
-      h+='<div style="padding:8px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(0,0,0,.04);font-size:13px">';
+      h+='<div style="padding:8px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(0,0,0,.04);font-size:13px;flex-wrap:wrap;gap:6px">';
       h+='<div style="display:flex;gap:10px;align-items:center">';
       h+='<span style="font-family:DM Mono,monospace;font-size:11px;color:var(--tx3)">'+s.num_signalement+'</span>';
       h+='<span style="color:var(--tx)">'+s.prenom+' '+s.nom+'</span>';
       h+='<span style="color:var(--tx2);font-size:12px">'+(s.hauteur?s.hauteur+'m':'—')+'</span>';
       h+='</div>';
-      h+='<div style="display:flex;align-items:center;gap:8px">';
+      h+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
       h+='<span style="font-weight:700;color:var(--grn)">'+prix+'</span>';
       h+='<select style="font-size:11px;padding:2px 5px;border-radius:6px;background:var(--surf2);border:1px solid var(--bord)" onchange="updateFrelon('+s.id+',\'statut_facture\',this.value)">';
       h+='<option value="" '+(sf===''?'selected':'')+'>—</option>';
       h+='<option value="a_faire" '+(sf==='a_faire'?'selected':'')+'>🟠 À faire</option>';
       h+='<option value="envoyee" '+(sf==='envoyee'?'selected':'')+'>✅ Envoyée</option>';
+      h+='<option value="paye" '+(sf==='paye'?'selected':'')+'>💰 Payée</option>';
       h+='<option value="non_concerne" '+(sf==='non_concerne'?'selected':'')+'>— Non concerné</option>';
       h+='</select>';
+      h+='<input type="date" value="'+(s.date_paiement||'')+'" title="Date de paiement" style="font-size:11px;padding:2px 4px;border-radius:6px;background:var(--surf2);border:1px solid var(--bord)" onchange="updateFrelonPaiement('+s.id+',this.value)">';
       h+='</div>';
       h+='</div>';
     });
