@@ -3073,10 +3073,10 @@ function frelon_montant(s){
 
 function exportFrelonsCSV(){
   if(!signalements.length)return;
-  var sl={'a_faire':'À faire','envoyee':'Envoyée','non_concerne':'Non concerné','':"—"};
-  var csv='N°;Prénom;Nom;Adresse;Date intervention;Statut facture;N° facture\n';
+  var sl={'a_faire':'À faire','envoyee':'Envoyée','paye':'Payée','non_concerne':'Non concerné','':"—"};
+  var csv='N°;Prénom;Nom;Adresse;Hauteur (m);Prix;Date intervention;Statut facture;N° facture;Date envoi;Date paiement\n';
   signalements.forEach(function(s){
-    csv+=(s.num_signalement||'')+';'+(s.prenom||'')+';'+(s.nom||'')+';"'+(s.adresse||'')+'";'+(s.date_intervention||'')+';'+(sl[s.statut_facture||'']||'—')+';'+(s.num_facture||'')+'\n';
+    csv+=(s.num_signalement||'')+';'+(s.prenom||'')+';'+(s.nom||'')+';"'+(s.adresse||'')+'";'+(s.hauteur||'')+';'+frelon_montant(s)+';'+(s.date_intervention||'')+';'+(sl[s.statut_facture||'']||'—')+';'+(s.num_facture||'')+';'+(s.date_envoi_facture||'')+';'+(s.date_paiement||'')+'\n';
   });
   var blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
   var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='suivi_factures_frelons.csv';a.click();
