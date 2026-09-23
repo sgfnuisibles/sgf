@@ -2743,11 +2743,11 @@ function renderFreloTable(){
     h+='<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px">'+(s.prenom||'')+' '+(s.nom||'')+'</td>';
     h+='<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--tx2)">'+(s.adresse||'')+'</td>';
     h+='<td style="font-size:12px;color:var(--tx2)">'+(s.date_intervention||'—')+'</td>';
-    var hVal=s.hauteur!==null&&s.hauteur!==undefined?s.hauteur+'m':'—';
+    var hVal=s.hauteur!==null&&s.hauteur!==undefined?s.hauteur:'';
     var pAuto=frelon_prix(s.hauteur);
     var pManuel=s.prix_manuel!==null&&s.prix_manuel!==undefined?s.prix_manuel:'';
     var pColor=s.hauteur<=3?'var(--grn)':s.hauteur<=9?'var(--blu)':s.hauteur<=20?'var(--yel)':'var(--acc)';
-    h+='<td style="font-size:12px;color:var(--tx2);text-align:center">'+hVal+'</td>';
+    h+='<td style="text-align:center"><input type="number" step="0.5" id="ht_'+s.id+'" value="'+hVal+'" style="width:44px;border:1px solid var(--bord);border-radius:6px;padding:2px 4px;font-size:12px;color:var(--tx2);background:var(--surf2);text-align:center" oninput="autoSaveFrelon('+s.id+')"></td>';
     h+='<td style="text-align:center"><input type="number" id="pm_'+s.id+'" value="'+(pManuel||'')+'" placeholder="'+pAuto+'" style="width:58px;border:1px solid var(--bord);border-radius:6px;padding:2px 5px;font-size:12px;font-weight:700;color:'+pColor+';background:var(--surf2);text-align:center" oninput="autoSaveFrelon('+s.id+')"></td>';
     h+='<td><select style="font-size:12px;padding:3px 6px;border-radius:7px;'+sfStyle+';width:100%;font-family:DM Sans,sans-serif" onchange="updateFrelon('+s.id+',\'statut_facture\',this.value)">';
     h+='<option value="" '+(sf===''?'selected':'')+'>—</option>';
@@ -2822,13 +2822,25 @@ function autoSaveFrelon(id){
     if(dp)s.date_paiement=dp.value||null;
     var pmEl=document.getElementById('pm_'+id);
     if(pmEl){var pmVal=parseFloat(pmEl.value);s.prix_manuel=isNaN(pmVal)?null:pmVal;}
+    var htEl=document.getElementById('ht_'+id);
+    var hauteurChanged=false;
+    if(htEl){
+      var hVal2=parseFloat(htEl.value);
+      var newH=isNaN(hVal2)?null:hVal2;
+      if(newH!==s.hauteur){hauteurChanged=true;}
+      s.hauteur=newH;
+    }
     db.from('signalements_frelons').update({
       num_facture:s.num_facture||'',
       statut_facture:s.statut_facture||'',
       date_envoi_facture:s.date_envoi_facture||null,
       date_paiement:s.date_paiement||null,
-      prix_manuel:s.prix_manuel||null
-    }).eq('id',id).then(function(){showAutoSave();});
+      prix_manuel:s.prix_manuel||null,
+      hauteur:s.hauteur
+    }).eq('id',id).then(function(){
+      showAutoSave();
+      if(hauteurChanged)renderFreloTable();
+    });
   },800);
 }
 
