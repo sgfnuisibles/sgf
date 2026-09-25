@@ -2764,22 +2764,42 @@ function renderFreloTable(){
     return true;
   });
 
+  // Groupe les nids supplémentaires (ex. "77727-2") juste sous leur signalement d'origine ("77727")
+  function parseBaseSuffix(num){
+    var m=String(num||'').match(/^(\d+)(?:-(\d+))?$/);
+    if(!m)return{base:num||'',suffix:0};
+    return{base:m[1],suffix:m[2]?parseInt(m[2],10):0};
+  }
+  rows.sort(function(a,b){
+    var pa=parseBaseSuffix(a.num_signalement),pb=parseBaseSuffix(b.num_signalement);
+    if(pa.base!==pb.base)return pb.base.localeCompare(pa.base,undefined,{numeric:true});
+    return pa.suffix-pb.suffix;
+  });
+  var groupCount={};
+  rows.forEach(function(s){var b=parseBaseSuffix(s.num_signalement).base;groupCount[b]=(groupCount[b]||0)+1;});
+
   var tbody=document.getElementById('frelon-tbody');
   if(!tbody)return;
   if(rows.length===0){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--tx3)">Aucun résultat — importez votre CSV</td></tr>';return;}
 
   var h='';
   rows.forEach(function(s,i){
+    var ps=parseBaseSuffix(s.num_signalement);
+    var isSub=ps.suffix>0;
+    var groupSize=groupCount[ps.base]||1;
+    var isLastOfGroup=(i===rows.length-1)||parseBaseSuffix(rows[i+1].num_signalement).base!==ps.base;
     var sf=s.statut_facture||'';
-    var bg=i%2===0?'':'background:rgba(0,0,0,.015)';
+    var bg=isSub?'background:rgba(46,168,74,.05);border-left:3px solid var(--grn)':(i%2===0?'':'background:rgba(0,0,0,.015)');
+    var borderBottom=(groupSize>1&&isLastOfGroup)?'2px solid var(--tx2)':'1px solid var(--bord)';
     var sfStyle='';
     if(sf==='a_faire')sfStyle='background:rgba(249,115,22,.1);color:var(--ora);border:1px solid rgba(249,115,22,.25)';
     else if(sf==='envoyee')sfStyle='background:rgba(46,168,74,.1);color:var(--grn);border:1px solid rgba(46,168,74,.25)';
     else if(sf==='paye')sfStyle='background:rgba(59,130,246,.1);color:#3b82f6;border:1px solid rgba(59,130,246,.25)';
     else sfStyle='background:var(--surf2);color:var(--tx3);border:1px solid var(--bord)';
-    h+='<tr style="'+bg+';border-bottom:1px solid var(--bord)">';
-    h+='<td style="font-weight:700;font-family:DM Mono,monospace;font-size:12px">'+(s.num_signalement||'')+'</td>';
-    h+='<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px">'+(s.prenom||'')+' '+(s.nom||'')+'</td>';
+    h+='<tr style="'+bg+';border-bottom:'+borderBottom+'">';
+    var numDisplay=isSub?'<span style="color:var(--tx3)">↳</span> '+(s.num_signalement||''):(s.num_signalement||'');
+    h+='<td style="font-weight:700;font-family:DM Mono,monospace;font-size:12px'+(isSub?';font-style:italic;color:var(--tx2)':'')+'">'+numDisplay+'</td>';
+    h+='<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px'+(isSub?';font-style:italic;color:var(--tx2)':'')+'">'+(isSub?'2ᵉ nid — ':'')+(s.prenom||'')+' '+(s.nom||'')+'</td>';
     h+='<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--tx2)">'+(s.adresse||'')+'</td>';
     h+='<td style="font-size:12px;color:var(--tx2)">'+(s.date_intervention||'—')+'</td>';
     var hVal=s.hauteur!==null&&s.hauteur!==undefined?s.hauteur:'';
