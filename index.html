@@ -1723,7 +1723,18 @@ function renderRapports(){
 }
 
 // ═══ PDF ═══
-function exportPDF(passageId){
+function urlToDataURL(url){
+  return fetch(url).then(function(r){if(!r.ok)throw new Error('fetch fail');return r.blob();}).then(function(blob){
+    return new Promise(function(resolve,reject){
+      var reader=new FileReader();
+      reader.onload=function(){resolve(reader.result);};
+      reader.onerror=reject;
+      reader.readAsDataURL(blob);
+    });
+  });
+}
+
+async function exportPDF(passageId){
   var jsPDF=window.jspdf?window.jspdf.jsPDF:null;
   if(!jsPDF){toast('PDF non disponible',true);return;}
   var pa=passages.find(function(p){return p.id===passageId;});if(!pa)return;
@@ -1731,6 +1742,15 @@ function exportPDF(passageId){
   var ctr=gct(pa.contrat_id)||{nom:'',type:'',date_debut:'',date_fin:''};
   var allPostes=gContratPostes(pa.contrat_id, pa.date_passage);
   var res=gPassRes(passageId);
+  var isMoustique=ctr.type==='moustique';
+  var photoCache={};
+  if(isMoustique){
+    var postesAvecPhoto=allPostes.filter(function(p){return p.photo_url;});
+    if(postesAvecPhoto.length)toast('Chargement des photos…');
+    await Promise.all(postesAvecPhoto.map(function(p){
+      return urlToDataURL(p.photo_url).then(function(du){if(du)photoCache[p.id]=du;}).catch(function(){});
+    }));
+  }
   var ok=res.filter(function(r){return r.statut==='sain'||r.statut==='ok';}).length;
   var actif=res.filter(function(r){return r.statut==='consomme'||r.statut==='actif';}).length;
   var remplace=res.filter(function(r){return r.statut==='realimente'||r.statut==='remplace';}).length;
@@ -2082,8 +2102,12 @@ function exportPDF(passageId){
         var detailsBottom=fieldCount>0?(18+(fieldCount-1)*4):13;
         var noteLines=r&&r.note?doc.splitTextToSize(r.note,cardW-6):[];
         var noteStartY=detailsBottom+(fieldCount>0?5:3);
-        var neededH=noteLines.length>0?(noteStartY+noteLines.length*3.2+2):(detailsBottom+5);
-        return{p:p,r:r,fieldCount:fieldCount,noteLines:noteLines,noteStartY:noteStartY,neededH:Math.max(28,neededH)};
+        var contentBottom=noteLines.length>0?(noteStartY+noteLines.length*3.2+2):(detailsBottom+5);
+        var hasPhoto=isMoustique&&!!photoCache[p.id];
+        var photoH=24;
+        var photoY=contentBottom+2;
+        var neededH=hasPhoto?(photoY+photoH+3):contentBottom;
+        return{p:p,r:r,fieldCount:fieldCount,noteLines:noteLines,noteStartY:noteStartY,hasPhoto:hasPhoto,photoY:photoY,photoH:photoH,neededH:Math.max(28,neededH)};
       });
       var rowH=Math.max.apply(null,cardsInfo.map(function(ci){return ci.neededH;}));
       if(gy+rowH>280){doc.addPage();gy=14;}
@@ -2142,6 +2166,15 @@ function exportPDF(passageId){
           ci.noteLines.forEach(function(line,li){
             doc.text(line,x+3,gy+ci.noteStartY+li*3.2);
           });
+        }
+        if(ci.hasPhoto){
+          var pw=cardW-6,ph=ci.photoH;
+          try{
+            var du=photoCache[p.id];
+            var fmt=du.indexOf('data:image/png')===0?'PNG':'JPEG';
+            doc.addImage(du,fmt,x+3,gy+ci.photoY,pw,ph);
+            doc.setDrawColor(220,220,220);doc.setLineWidth(0.2);doc.rect(x+3,gy+ci.photoY,pw,ph,'S');
+          }catch(e){}
         }
       });
       gy+=rowH+3;
