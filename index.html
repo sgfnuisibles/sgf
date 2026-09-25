@@ -2805,7 +2805,7 @@ function renderFreloTable(){
     h+='<td><input type="text" id="nf_'+s.id+'" value="'+(s.num_facture||'')+'" placeholder="F-2026-001" class="fi" style="font-size:11px;padding:2px 5px;height:auto;width:100%" oninput="autoSaveFrelon('+s.id+')"></td>';
     h+='<td style="'+alertRelance+'"><input type="date" id="de_'+s.id+'" value="'+(s.date_envoi_facture||'')+'" class="fi" style="font-size:11px;padding:2px 4px;height:auto;width:100%" onchange="updateFrelon('+s.id+',\'date_envoi_facture\',this.value)"></td>';
     h+='<td><input type="date" id="dp_'+s.id+'" value="'+(s.date_paiement||'')+'" class="fi" style="font-size:11px;padding:2px 4px;height:auto;width:100%" onchange="updateFrelonPaiement('+s.id+',this.value)"></td>';
-    h+='<td style="text-align:center"><button onclick="deleteFrelon('+s.id+',\''+(s.num_signalement||'')+'\')" title="Supprimer" style="background:rgba(230,48,48,.1);color:var(--acc);border:1px solid rgba(230,48,48,.2);border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:13px">🗑️</button></td>';
+    h+='<td style="text-align:center;white-space:nowrap"><button onclick="ajouterNidSupplementaire('+s.id+')" title="Ajouter un 2e nid sur ce signalement" style="background:rgba(46,168,74,.1);color:var(--grn);border:1px solid rgba(46,168,74,.2);border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:13px;margin-right:4px">➕</button><button onclick="deleteFrelon('+s.id+',\''+(s.num_signalement||'')+'\')" title="Supprimer" style="background:rgba(230,48,48,.1);color:var(--acc);border:1px solid rgba(230,48,48,.2);border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:13px">🗑️</button></td>';
     h+='</tr>';
   });
   tbody.innerHTML=h;
@@ -2832,6 +2832,39 @@ function updateFrelonPaiement(id,val){
     showAutoSave();
   });
   renderFrelons();
+}
+
+function ajouterNidSupplementaire(id){
+  var s=signalements.find(function(x){return x.id===id;});
+  if(!s)return;
+  var hStr=prompt('2ᵉ nid découvert sur place — hauteur (en mètres) :','');
+  if(hStr===null)return;
+  var h=parseFloat(hStr.replace(',','.'));
+  if(isNaN(h)||h<0){toast('Hauteur invalide',true);return;}
+  var baseNum=(s.num_signalement||'').replace(/-\d+$/,'');
+  var suffix=2;
+  while(signalements.some(function(x){return x.num_signalement===baseNum+'-'+suffix;}))suffix++;
+  var newNum=baseNum+'-'+suffix;
+  var prix=frelon_prix(h);
+  var newRow={
+    num_signalement:newNum,
+    prenom:s.prenom||'',
+    nom:s.nom||'',
+    adresse:s.adresse||'',
+    date_intervention:s.date_intervention||'',
+    hauteur:h,
+    prix_manuel:null,
+    statut_facture:'',
+    num_facture:''
+  };
+  syncOn();
+  db.from('signalements_frelons').insert(newRow).select().then(function(r){
+    syncOff();
+    if(r.error){toast('⚠️ Erreur : '+r.error.message,true);return;}
+    if(r.data&&r.data[0])signalements.unshift(r.data[0]);
+    toast('➕ Nid '+newNum+' ajouté — '+prix+'€');
+    renderFrelons();
+  });
 }
 
 function deleteFrelon(id,num){
