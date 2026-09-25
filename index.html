@@ -2168,12 +2168,18 @@ async function exportPDF(passageId){
           });
         }
         if(ci.hasPhoto){
-          var pw=cardW-6,ph=ci.photoH;
+          var boxW=cardW-6,boxH=ci.photoH;
           try{
             var du=photoCache[p.id];
             var fmt=du.indexOf('data:image/png')===0?'PNG':'JPEG';
-            doc.addImage(du,fmt,x+3,gy+ci.photoY,pw,ph);
-            doc.setDrawColor(220,220,220);doc.setLineWidth(0.2);doc.rect(x+3,gy+ci.photoY,pw,ph,'S');
+            var props=doc.getImageProperties(du);
+            var ratio=props.width/props.height;
+            var drawW=boxW,drawH=boxW/ratio;
+            if(drawH>boxH){drawH=boxH;drawW=boxH*ratio;}
+            var ix=x+3+(boxW-drawW)/2,iy=gy+ci.photoY+(boxH-drawH)/2;
+            doc.setFillColor(245,245,245);doc.rect(x+3,gy+ci.photoY,boxW,boxH,'F');
+            doc.addImage(du,fmt,ix,iy,drawW,drawH);
+            doc.setDrawColor(220,220,220);doc.setLineWidth(0.2);doc.rect(x+3,gy+ci.photoY,boxW,boxH,'S');
           }catch(e){}
         }
       });
