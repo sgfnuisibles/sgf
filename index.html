@@ -2722,7 +2722,7 @@ function renderFrelons(){
   h+='<button class="btn btn-g btn-sm" onclick="exportFrelonsCSV()">💾 Export suivi</button>';
   h+='</div>';
 
-  h+='<div class="tbl-wrap"><table class="tbl" style="table-layout:fixed;width:100%">';
+  h+='<div class="tbl-wrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table class="tbl" style="table-layout:fixed;width:100%;min-width:1040px">';
   h+='<thead><tr>';
   h+='<th style="width:55px">N°</th>';
   h+='<th style="width:110px">Nom</th>';
@@ -2734,9 +2734,10 @@ function renderFrelons(){
   h+='<th style="width:80px">N° fact.</th>';
   h+='<th style="width:80px">Envoi</th>';
   h+='<th style="width:80px">Paiement</th>';
-  h+='<th style="width:36px"></th>';
+  h+='<th style="width:94px"></th>';
   h+='</tr></thead>';
   h+='<tbody id="frelon-tbody"></tbody></table></div>';
+  h+='<div style="font-size:11px;color:var(--tx3);margin-top:6px;text-align:center">↔ Fais glisser le tableau horizontalement pour voir toutes les colonnes</div>';
 
   document.getElementById('page').innerHTML=h;
   renderFreloTable();
@@ -2831,7 +2832,7 @@ function renderFreloTable(){
     h+='<td><input type="text" id="nf_'+s.id+'" value="'+(s.num_facture||'')+'" placeholder="F-2026-001" class="fi" style="font-size:11px;padding:2px 5px;height:auto;width:100%" oninput="autoSaveFrelon('+s.id+')"></td>';
     h+='<td style="'+alertRelance+'"><input type="date" id="de_'+s.id+'" value="'+(s.date_envoi_facture||'')+'" class="fi" style="font-size:11px;padding:2px 4px;height:auto;width:100%" onchange="updateFrelon('+s.id+',\'date_envoi_facture\',this.value)"></td>';
     h+='<td><input type="date" id="dp_'+s.id+'" value="'+(s.date_paiement||'')+'" class="fi" style="font-size:11px;padding:2px 4px;height:auto;width:100%" onchange="updateFrelonPaiement('+s.id+',this.value)"></td>';
-    h+='<td style="text-align:center;white-space:nowrap"><button onclick="ajouterNidSupplementaire('+s.id+')" title="Ajouter un 2e nid sur ce signalement" style="background:rgba(46,168,74,.1);color:var(--grn);border:1px solid rgba(46,168,74,.2);border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:13px;margin-right:4px">➕</button>'+((isSub||isSubv)?'':'<button onclick="scinderSubvention('+s.id+')" title="Scinder en 2 factures (subvention + part propriétaire)" style="background:rgba(59,130,246,.1);color:#3b82f6;border:1px solid rgba(59,130,246,.2);border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:13px;margin-right:4px">💶</button>')+'<button onclick="deleteFrelon('+s.id+',\''+(s.num_signalement||'')+'\')" title="Supprimer" style="background:rgba(230,48,48,.1);color:var(--acc);border:1px solid rgba(230,48,48,.2);border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:13px">🗑️</button></td>';
+    h+='<td style="text-align:center;white-space:nowrap;padding:12px 6px"><button onclick="ajouterNidSupplementaire('+s.id+')" title="Ajouter un 2e nid sur ce signalement" style="background:rgba(46,168,74,.1);color:var(--grn);border:1px solid rgba(46,168,74,.2);border-radius:6px;width:24px;height:24px;cursor:pointer;font-size:12px;margin-right:3px;padding:0">➕</button>'+((isSub||isSubv)?'':'<button onclick="scinderSubvention('+s.id+')" title="Scinder en 2 factures (subvention + part propriétaire)" style="background:rgba(59,130,246,.1);color:#3b82f6;border:1px solid rgba(59,130,246,.2);border-radius:6px;width:24px;height:24px;cursor:pointer;font-size:12px;margin-right:3px;padding:0">💶</button>')+'<button onclick="deleteFrelon('+s.id+',\''+(s.num_signalement||'')+'\')" title="Supprimer" style="background:rgba(230,48,48,.1);color:var(--acc);border:1px solid rgba(230,48,48,.2);border-radius:6px;width:24px;height:24px;cursor:pointer;font-size:12px;padding:0">🗑️</button></td>';
     h+='</tr>';
   });
   tbody.innerHTML=h;
