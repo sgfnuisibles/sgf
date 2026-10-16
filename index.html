@@ -901,6 +901,30 @@ function openTerrain(passageId){
   h+='<div style="margin:10px 0 14px"><label style="font-size:10px;font-weight:700;color:var(--tx3);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:5px">💬 Commentaire de la visite</label>';
   h+='<textarea class="fta" id="f-passage-notes" rows="2" placeholder="Observations générales, recommandations..." style="width:100%;box-sizing:border-box'+(isRO?';opacity:.75':'')+'" onchange="saveNotesPassage('+passageId+',this.value)">'+(pa.notes||'')+'</textarea></div>';
 
+  // Remarques de contrôle (contrats moustiques) — texte + photos, reprises en fin de rapport
+  if(ctr.type==='moustique'){
+    var rems=getRemarques(pa);
+    h+='<div style="margin:0 0 14px;background:var(--surf2);border:1px solid var(--bord);border-radius:12px;padding:12px">';
+    h+='<label style="font-size:10px;font-weight:700;color:var(--tx3);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:8px">📝 Remarques de contrôle'+(rems.length?' ('+rems.length+')':'')+'</label>';
+    rems.forEach(function(rm){
+      h+='<div style="background:#fff;border:1px solid var(--bord);border-radius:10px;padding:9px 10px;margin-bottom:8px">';
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-size:10px;color:var(--tx3)">'+fdate(rm.date)+'</span><button onclick="supprimerRemarque('+passageId+','+rm.id+')" title="Supprimer" style="background:none;border:none;cursor:pointer;font-size:13px">🗑️</button></div>';
+      if(rm.texte)h+='<div style="font-size:13px;white-space:pre-wrap;margin-bottom:'+((rm.photos&&rm.photos.length)?'6':'0')+'px">'+rm.texte.replace(/</g,'&lt;')+'</div>';
+      if(rm.photos&&rm.photos.length){
+        h+='<div style="display:flex;gap:6px;flex-wrap:wrap">';
+        rm.photos.forEach(function(u){h+='<a href="'+u+'" target="_blank"><img src="'+u+'" style="width:84px;height:84px;object-fit:cover;border-radius:8px;border:1px solid var(--bord)"></a>';});
+        h+='</div>';
+      }
+      h+='</div>';
+    });
+    h+='<textarea class="fta" id="f-rem-txt" rows="2" placeholder="Nouvelle remarque (observation, recommandation…)" style="width:100%;box-sizing:border-box;margin-bottom:6px"></textarea>';
+    h+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">';
+    h+='<label style="display:inline-flex;align-items:center;gap:5px;background:#fff;border:1px solid var(--bord);color:var(--tx2);font-size:12px;font-weight:600;padding:6px 12px;border-radius:8px;cursor:pointer">📷 Photos<input type="file" id="f-rem-photos" accept="image/*" multiple style="display:none" onchange="document.getElementById(\'f-rem-count\').textContent=this.files.length?this.files.length+\' photo(s)\':\'\'"></label>';
+    h+='<span id="f-rem-count" style="font-size:11px;color:var(--tx3)"></span><div style="flex:1"></div>';
+    h+='<button class="btn btn-r btn-sm" onclick="ajouterRemarque('+passageId+')">＋ Ajouter</button>';
+    h+='</div></div>';
+  }
+
   // Tabs plans
   h+='<div class="plan-tabs">';
   cPlans.forEach(function(pl){
@@ -1251,6 +1275,70 @@ function setConso(pid,conso,passageId){
 function setNote(pid,note,passageId){
   var ex=gPosteRes(passageId,pid);
   dbUpdateRes(ex,{note:note},passageId,pid,null);
+}
+
+// ═══ REMARQUES DE CONTRÔLE (moustiques) ═══
+function getRemarques(pa){return Array.isArray(pa.remarques)?pa.remarques:[];}
+
+function compressPhotoToBlob(file){
+  return new Promise(function(resolve,reject){
+    var reader=new FileReader();
+    reader.onload=function(ev){
+      var img=new Image();
+      img.onload=function(){
+        var r=Math.min(1,1200/img.width);
+        var cv=document.createElement('canvas');
+        cv.width=Math.round(img.width*r);cv.height=Math.round(img.height*r);
+        cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+        cv.toBlob(function(b){b?resolve(b):reject(new Error('Image illisible'));},'image/jpeg',0.78);
+      };
+      img.onerror=function(){reject(new Error('Image illisible'));};
+      img.src=ev.target.result;
+    };
+    reader.onerror=function(){reject(new Error('Lecture impossible'));};
+    reader.readAsDataURL(file);
+  });
+}
+
+function uploadRemarquePhoto(file,passageId){
+  return compressPhotoToBlob(file).then(function(blob){
+    var fn='remarque-'+passageId+'-'+Date.now()+'-'+Math.floor(Math.random()*1000)+'.jpg';
+    return db.storage.from('photos-postes').upload(fn,blob,{contentType:'image/jpeg',upsert:true}).then(function(r){
+      if(r.error)throw r.error;
+      return db.storage.from('photos-postes').getPublicUrl(fn).data.publicUrl;
+    });
+  });
+}
+
+async function ajouterRemarque(passageId){
+  var pa=passages.find(function(p){return p.id===passageId;});if(!pa)return;
+  var txt=(document.getElementById('f-rem-txt').value||'').trim();
+  var files=Array.prototype.slice.call(document.getElementById('f-rem-photos').files||[]);
+  if(!txt&&!files.length){toast('Écris une remarque ou ajoute une photo',true);return;}
+  syncOn();toast('⏳ Enregistrement…');
+  try{
+    var urls=[];
+    for(var i=0;i<files.length;i++)urls.push(await uploadRemarquePhoto(files[i],passageId));
+    var list=getRemarques(pa).slice();
+    list.push({id:Date.now(),date:new Date().toISOString().slice(0,10),texte:txt,photos:urls});
+    var r=await db.from('passages').update({remarques:list}).eq('id',passageId);
+    if(r.error)throw r.error;
+    pa.remarques=list;syncOff();toast('✓ Remarque ajoutée');openTerrain(passageId);
+  }catch(e){
+    syncOff();
+    toast('⚠️ '+(e.message||e)+' — la colonne "remarques" (jsonb) existe-t-elle dans la table passages ?',true);
+  }
+}
+
+async function supprimerRemarque(passageId,remId){
+  var pa=passages.find(function(p){return p.id===passageId;});if(!pa)return;
+  if(!confirm('Supprimer cette remarque ?'))return;
+  var list=getRemarques(pa).filter(function(x){return x.id!==remId;});
+  syncOn();
+  var r=await db.from('passages').update({remarques:list}).eq('id',passageId);
+  syncOff();
+  if(r.error){toast('⚠️ '+r.error.message,true);return;}
+  pa.remarques=list;toast('Remarque supprimée');openTerrain(passageId);
 }
 
 async function saveNotesPassage(passageId,notes){
@@ -1751,6 +1839,15 @@ async function exportPDF(passageId){
       return urlToDataURL(p.photo_url).then(function(du){if(du)photoCache[p.id]=du;}).catch(function(){});
     }));
   }
+  var remarquesPdf=isMoustique?getRemarques(pa):[];
+  var remCache={};
+  if(remarquesPdf.length){
+    var urlsRem=[];
+    remarquesPdf.forEach(function(rm){(rm.photos||[]).forEach(function(u){urlsRem.push(u);});});
+    await Promise.all(urlsRem.map(function(u){
+      return urlToDataURL(u).then(function(du){if(du)remCache[u]=du;}).catch(function(){});
+    }));
+  }
   var ok=res.filter(function(r){return r.statut==='sain'||r.statut==='ok';}).length;
   var actif=res.filter(function(r){return r.statut==='consomme'||r.statut==='actif';}).length;
   var remplace=res.filter(function(r){return r.statut==='realimente'||r.statut==='remplace';}).length;
@@ -2186,6 +2283,60 @@ async function exportPDF(passageId){
       gy+=rowH+3;
     }
   });
+
+  // ═══════════════════════════
+  // REMARQUES DE CONTRÔLE (moustiques)
+  // ═══════════════════════════
+  if(remarquesPdf.length){
+    var ry=0;
+    var remHeader=function(){
+      doc.addPage();
+      doc.setFillColor(230,48,48);doc.rect(0,0,W,10,'F');
+      doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(255,255,255);
+      doc.text('Remarques de contrôle — '+c.nom,M,7);
+      doc.setFont('helvetica','normal');doc.setFontSize(8);
+      doc.text(fdate(pa.date_passage),W-M,7,{align:'right'});
+      ry=18;
+    };
+    var remEnsure=function(hh){if(ry+hh>280)remHeader();};
+    remHeader();
+    remarquesPdf.forEach(function(rm){
+      remEnsure(14);
+      doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(230,48,48);
+      doc.text('Remarque du '+fdate(rm.date),M,ry);ry+=5;
+      if(rm.texte){
+        doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(40,40,40);
+        doc.splitTextToSize(rm.texte,W-M*2).forEach(function(line){
+          remEnsure(5);doc.text(line,M,ry);ry+=4.6;
+        });
+        ry+=2;
+      }
+      var phs=(rm.photos||[]).filter(function(u){return remCache[u];});
+      var bw=(W-M*2-4)/2,bh=62;
+      for(var k=0;k<phs.length;k+=2){
+        remEnsure(bh+4);
+        [phs[k],phs[k+1]].forEach(function(u,idx){
+          if(!u)return;
+          var bx=M+idx*(bw+4);
+          try{
+            var du=remCache[u];
+            var fmt=du.indexOf('data:image/png')===0?'PNG':'JPEG';
+            var pr=doc.getImageProperties(du);
+            var ratio=pr.width/pr.height;
+            var dw=bw,dh=bw/ratio;
+            if(dh>bh){dh=bh;dw=bh*ratio;}
+            doc.setFillColor(245,245,245);doc.rect(bx,ry,bw,bh,'F');
+            doc.addImage(du,fmt,bx+(bw-dw)/2,ry+(bh-dh)/2,dw,dh);
+            doc.setDrawColor(220,220,220);doc.setLineWidth(0.2);doc.rect(bx,ry,bw,bh,'S');
+          }catch(e){}
+        });
+        ry+=bh+4;
+      }
+      ry+=4;
+      doc.setDrawColor(230,230,230);doc.setLineWidth(0.2);
+      if(ry<280)doc.line(M,ry-2,W-M,ry-2);
+    });
+  }
 
   // ═══════════════════════════
   // PAGE SIGNATURE
