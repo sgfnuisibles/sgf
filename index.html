@@ -1915,7 +1915,8 @@ async function exportPDF(passageId){
 
   var y=63;
 
-  // KPIs
+  // KPIs + répartition des appâts : inutiles sur un rapport moustiques
+  if(!isMoustique){
   var kpis=[
     {l:'Sain',v:ok,bg:[236,253,243],bc:[46,168,74],c:[46,168,74]},
     {l:'Consommé',v:actif,bg:[255,237,237],bc:[230,48,48],c:[230,48,48]},
@@ -1964,6 +1965,7 @@ async function exportPDF(passageId){
   doc.setFontSize(20);doc.setTextColor(consoMoy>75?230:consoMoy>40?249:46,consoMoy>75?48:consoMoy>40?115:168,consoMoy>75?48:consoMoy>40?22:74);
   doc.text(consoMoy+'%',W-M-20,y+24,{align:'center'});
   y+=36;
+  }
 
   // Substances
   if(Object.keys(substUsed).length>0){
@@ -1977,7 +1979,7 @@ async function exportPDF(passageId){
 
   // Comparatif passages
   var prevPas=gContratPassages(pa.contrat_id).filter(function(p){return p.statut==='termine'&&p.id!==passageId;}).slice(0,4);
-  if(prevPas.length>0){
+  if(!isMoustique&&prevPas.length>0){
     doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(60,60,60);
     doc.text('ÉVOLUTION DES PASSAGES',M,y);y+=4;
     var compRows=[];
