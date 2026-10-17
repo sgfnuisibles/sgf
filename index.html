@@ -712,7 +712,7 @@ function openClientDrw(cid){
       var nbPass=gContratPassages(ct.id).length;
       var last=gContratPassages(ct.id)[0];
       h+='<div style="background:#f8f8f8;border:1px solid var(--bord);border-radius:12px;padding:14px;margin-bottom:10px">';
-      h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px"><div><div style="font-weight:700;font-size:14px">'+ct.nom+'</div><div style="font-size:11px;color:var(--tx3)">'+ct.type+' · '+fdate(ct.date_debut)+' → '+fdate(ct.date_fin)+'</div></div>'+badge(ct.statut==='actif'?'actifcontrat':'termine')+'</div>';
+      h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px"><div><div style="font-weight:700;font-size:14px">'+ct.nom+'</div><div style="font-size:11px;color:var(--tx3)">'+ct.type+' · '+fdate(ct.date_debut)+' → '+fdate(ct.date_fin)+(ct.montant_annuel?' · '+ct.montant_annuel+'€/an':'')+'</div></div>'+badge(ct.statut==='actif'?'actifcontrat':'termine')+'</div>';
       h+='<div style="display:flex;gap:0;padding:10px;background:var(--bg);border-radius:8px;margin-bottom:10px">';
       h+='<div class="pst"><div class="pst-v">'+nbP+'</div><div class="pst-l">Postes</div></div>';
       h+='<div class="pst"><div class="pst-v" style="color:var(--acc)">'+nbPl+'</div><div class="pst-l">Plans</div></div>';
@@ -734,7 +734,7 @@ function openClientDrw(cid){
           h+='</div>';
         });
       }
-      h+='<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-r btn-sm" onclick="startTerrain('+cid+','+ct.id+')">✅ Démarrer une visite</button><button class="btn btn-g btn-sm" onclick="openPassagesDrw('+ct.id+')">📋 Passages</button><button class="btn btn-g btn-sm" onclick="openPostesEditor('+ct.id+','+cid+')">⚙️ Postes</button><button class="btn btn-sm" style="background:rgba(230,48,48,.1);color:var(--acc);border:1px solid rgba(230,48,48,.2)" onclick="deleteContrat('+ct.id+','+cid+')">🗑️</button></div>';
+      h+='<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-r btn-sm" onclick="startTerrain('+cid+','+ct.id+')">✅ Démarrer une visite</button><button class="btn btn-g btn-sm" onclick="openPassagesDrw('+ct.id+')">📋 Passages</button><button class="btn btn-g btn-sm" onclick="openPostesEditor('+ct.id+','+cid+')">⚙️ Postes</button><button class="btn '+((ct.statut!=='actif'||(ct.date_fin&&ct.date_fin<new Date().toISOString().split('T')[0]))?'btn-r':'btn-g')+' btn-sm" onclick="modalRenouvellement('+ct.id+','+cid+')">🔄 Renouveler</button><button class="btn btn-sm" style="background:rgba(230,48,48,.1);color:var(--acc);border:1px solid rgba(230,48,48,.2)" onclick="deleteContrat('+ct.id+','+cid+')">🗑️</button></div>';
       h+='</div>';
     });
   }
@@ -2689,6 +2689,134 @@ function saveContrat(cid){
     if(r.error){toast('⚠️ Erreur',true);return;}
     contrats.push(r.data);toast('✓ Contrat créé');closeModal();openClientDrw(cid);
   });
+}
+
+// ═══ RENOUVELLEMENT DE CONTRAT ═══
+function isoAdd(iso,years,days){
+  var d=new Date(iso+'T00:00:00Z');
+  if(years)d.setUTCFullYear(d.getUTCFullYear()+years);
+  if(days)d.setUTCDate(d.getUTCDate()+days);
+  return d.toISOString().split('T')[0];
+}
+
+function addMonthsISO(iso,m){
+  var d=new Date(iso+'T00:00:00Z');
+  var day=d.getUTCDate();
+  d.setUTCDate(1);
+  d.setUTCMonth(d.getUTCMonth()+m);
+  var last=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate();
+  d.setUTCDate(Math.min(day,last));
+  return d.toISOString().split('T')[0];
+}
+
+function buildEcheances(n,debut,prix){
+  var labels=n===1?['Unique']:n===2?['S1','S2']:['T1','T2','T3','T4'];
+  var step=12/n;
+  var base=Math.floor(prix*100/n)/100;
+  var out=[];
+  for(var i=0;i<n;i++){
+    var m=(i===n-1)?Math.round((prix-base*(n-1))*100)/100:base;
+    out.push({echeance:labels[i],date:addMonthsISO(debut,step*i),montant:m});
+  }
+  return out;
+}
+
+function fmtEur(x){return (Math.round(x*100)/100).toLocaleString('fr-FR')+'€';}
+
+function majApercuEch(){
+  var el=document.getElementById('f-rn-apercu');if(!el)return;
+  var n=parseInt(document.getElementById('f-rn-ech').value)||0;
+  var numWrap=document.getElementById('f-rn-numwrap');
+  if(numWrap)numWrap.style.display=n?'':'none';
+  if(!n){el.textContent='';return;}
+  var debut=document.getElementById('f-rn-debut').value;
+  var prix=parseFloat((document.getElementById('f-rn-prix').value||'').replace(',','.'));
+  if(!debut||isNaN(prix)||prix<=0){el.textContent='Renseigne le début et le tarif pour générer les échéances.';return;}
+  el.textContent=buildEcheances(n,debut,prix).map(function(e){return e.echeance+' : '+fmtEur(e.montant)+' le '+fdate(e.date);}).join('  ·  ');
+}
+
+function modalRenouvellement(ctid,cid){
+  var ct=contrats.find(function(c){return c.id===ctid;});if(!ct)return;
+  var today=new Date().toISOString().split('T')[0];
+  var debut=ct.date_fin?isoAdd(ct.date_fin,0,1):today;
+  var fin=isoAdd(debut,1,-1);
+  // Rythme et n° de contrat de l'échéancier déduits de l'historique du client
+  var ech=echeancier.filter(function(e){return e.client_id===cid;}).sort(function(a,b){return (b.date_echeance||'').localeCompare(a.date_echeance||'');});
+  var lastNum='';
+  ech.some(function(e){if(e.num_contrat){lastNum=e.num_contrat;return true;}return false;});
+  var nbPrev=lastNum?ech.filter(function(e){return e.num_contrat===lastNum&&e.date_echeance&&e.date_echeance>=isoAdd(debut,-1,0)&&e.date_echeance<debut;}).length:0;
+  var defN=(nbPrev===1||nbPrev===2||nbPrev===4)?nbPrev:0;
+  document.getElementById('modal-title').textContent='RENOUVELER LE CONTRAT';
+  document.getElementById('modal-body').innerHTML=
+    '<div style="background:var(--surf2);border:1px solid var(--bord);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12px">'+
+      '<div style="font-weight:700;font-size:13px;margin-bottom:2px">'+ct.nom+'</div>'+
+      '<div style="color:var(--tx3)">Période actuelle : '+fdate(ct.date_debut)+' → '+fdate(ct.date_fin)+(ct.montant_annuel?' · '+ct.montant_annuel+'€/an':'')+'</div>'+
+      '<div style="color:var(--tx3);margin-top:4px">Les postes, plans et l\'historique des passages sont conservés.</div>'+
+    '</div>'+
+    '<div class="fg2"><div class="fg"><label>Nouveau début</label><input class="fi" id="f-rn-debut" type="date" value="'+debut+'" onchange="if(this.value)document.getElementById(\'f-rn-fin\').value=isoAdd(this.value,1,-1);majApercuEch()"></div>'+
+    '<div class="fg"><label>Nouvelle fin</label><input class="fi" id="f-rn-fin" type="date" value="'+fin+'"></div></div>'+
+    '<div class="fg"><label>Nouveau tarif annuel (€)</label><input class="fi" id="f-rn-prix" type="number" step="0.01" value="'+(ct.montant_annuel||'')+'" placeholder="Laisser vide si inchangé / non renseigné" oninput="majApercuEch()"></div>'+
+    '<div class="fg"><label>Échéances de facturation</label><select class="fs" id="f-rn-ech" onchange="majApercuEch()">'+
+      '<option value="0"'+(defN===0?' selected':'')+'>Ne pas créer d\'échéances</option>'+
+      '<option value="1"'+(defN===1?' selected':'')+'>1 échéance (annuelle)</option>'+
+      '<option value="2"'+(defN===2?' selected':'')+'>2 échéances (semestrielle)</option>'+
+      '<option value="4"'+(defN===4?' selected':'')+'>4 échéances (trimestrielle T1–T4)</option>'+
+    '</select><div id="f-rn-apercu" style="font-size:11px;color:var(--tx3);margin-top:5px;line-height:1.5"></div></div>'+
+    '<div class="fg" id="f-rn-numwrap"><label>N° contrat (échéancier)</label><input class="fi" id="f-rn-num" value="'+lastNum+'" placeholder="C-001"></div>'+
+    '<div class="fg"><label>Remarque (optionnel)</label><textarea class="fta" id="f-rn-notes" placeholder="Ex. accord du client par mail le…"></textarea></div>';
+  document.getElementById('modal-foot').innerHTML=
+    '<button class="btn btn-g" onclick="closeModal()">Annuler</button>'+
+    '<button class="btn btn-r" onclick="renouvelerContrat('+ctid+','+cid+')">🔄 Renouveler</button>';
+  document.getElementById('modal-bg').classList.add('on');
+  majApercuEch();
+}
+
+async function renouvelerContrat(ctid,cid){
+  var ct=contrats.find(function(c){return c.id===ctid;});if(!ct)return;
+  var debut=document.getElementById('f-rn-debut').value;
+  var fin=document.getElementById('f-rn-fin').value;
+  if(!debut||!fin||fin<=debut){toast('⚠️ Dates invalides',true);return;}
+  var prixStr=(document.getElementById('f-rn-prix').value||'').trim();
+  var prix=prixStr===''?null:parseFloat(prixStr.replace(',','.'));
+  if(prixStr!==''&&(isNaN(prix)||prix<0)){toast('⚠️ Tarif invalide',true);return;}
+  var extra=(document.getElementById('f-rn-notes').value||'').trim();
+  var nEch=parseInt(document.getElementById('f-rn-ech').value)||0;
+  var numC=(document.getElementById('f-rn-num').value||'').trim();
+  if(nEch>0&&(prix===null||prix<=0)){toast('⚠️ Renseigne le tarif pour créer les échéances',true);return;}
+  if(nEch>0){
+    var deja=echeancier.filter(function(e){return e.client_id===cid&&(numC?e.num_contrat===numC:true)&&e.date_echeance&&e.date_echeance>=debut&&e.date_echeance<=fin;}).length;
+    if(deja&&!confirm(deja+' échéance(s) existent déjà sur cette période pour ce client. Générer quand même ?'))return;
+  }
+  var today=new Date().toISOString().split('T')[0];
+  var oldPrix=ct.montant_annuel;
+  var line='['+fdate(today)+'] Renouvelé : '+fdate(ct.date_debut)+' → '+fdate(ct.date_fin)+(oldPrix?' ('+oldPrix+'€)':'')+' ➜ '+fdate(debut)+' → '+fdate(fin)+(prix!==null?' ('+prix+'€)':'')+(extra?' — '+extra:'');
+  var notes=((ct.notes||'').trim()?ct.notes.trim()+'\n':'')+line;
+  var upd={date_debut:debut,date_fin:fin,statut:'actif',notes:notes};
+  if(prix!==null)upd.montant_annuel=prix;
+  syncOn();
+  var r=await db.from('contrats').update(upd).eq('id',ctid);
+  var prixSeulementEnNotes=false;
+  if(r.error&&prix!==null){
+    delete upd.montant_annuel;
+    r=await db.from('contrats').update(upd).eq('id',ctid);
+    prixSeulementEnNotes=!r.error;
+  }
+  if(r.error){syncOff();toast('⚠️ Erreur : '+r.error.message,true);return;}
+  Object.assign(ct,upd);
+  // Génération des échéances de facturation
+  var echMsg='',echErr=false;
+  if(nEch>0){
+    var rows=buildEcheances(nEch,debut,prix).map(function(e){
+      return {client_id:cid,echeance:e.echeance,date_echeance:e.date,montant:e.montant,num_contrat:numC,notes:'Renouvellement — '+ct.nom,statut:'en_attente'};
+    });
+    var re=await db.from('echeancier').insert(rows).select();
+    if(re.error){echErr=true;echMsg=' — ⚠️ échéances non créées ('+re.error.message+'), à ajouter dans Facturation';}
+    else{(re.data||[]).forEach(function(x){echeancier.push(x);});echMsg=' — '+rows.length+' échéance'+(rows.length>1?'s':'')+' créée'+(rows.length>1?'s':'');}
+  }
+  syncOff();
+  closeModal();
+  toast('🔄 Contrat renouvelé'+(prixSeulementEnNotes?' (tarif noté dans les notes uniquement)':'')+echMsg,echErr);
+  openClientDrw(cid);
 }
 
 function deleteContrat(ctid,cid){
