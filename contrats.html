@@ -151,7 +151,7 @@ textarea.cr{border:1px solid #e0e0e0;border-radius:6px;padding:4px 8px;font-size
     <div class="form-row">
       <div class="form-group">
         <label>Début du contrat</label>
-        <input type="date" id="f-debut">
+        <input type="date" id="f-debut" oninput="renewDebutChange(this.value)">
       </div>
       <div class="form-group">
         <label>Fin du contrat</label>
@@ -365,6 +365,7 @@ async function dbSaveSuivi(dbId, passages, factures){
 let passageFields=[];
 
 function openModal(dbId){
+  renewMode=false;
   passageFields=[];
   document.getElementById('edit-id').value='';
   document.getElementById('f-num').value='';
@@ -392,6 +393,46 @@ function openModal(dbId){
   }
   renderPassageFields();
   document.getElementById('overlay').classList.add('open');
+}
+
+// ── RENOUVELLEMENT ──
+let renewMode=false;
+
+function isoShift(iso,years,days){
+  const d=new Date(iso+'T00:00:00Z');
+  if(years)d.setUTCFullYear(d.getUTCFullYear()+years);
+  if(days)d.setUTCDate(d.getUTCDate()+days);
+  return d.toISOString().slice(0,10);
+}
+
+function renewDebutChange(v){
+  if(renewMode&&v)document.getElementById('f-fin').value=isoShift(v,1,-1);
+}
+
+// Crée un NOUVEAU contrat pour la période suivante : l'ancien reste intact
+// (son suivi de passages, ses factures et ses encaissements ne sont pas modifiés).
+function openRenewModal(dbId){
+  const c=CONTRATS.find(x=>x.id===dbId);if(!c)return;
+  openModal();
+  renewMode=true;
+  const base=(c.num_contrat||'').replace(/-R\d+$/,'');
+  const nb=CONTRATS.filter(x=>(x.num_contrat||'').startsWith(base+'-R')).length;
+  const debut=c.fin?isoShift(c.fin,0,1):new Date().toISOString().slice(0,10);
+  const sp=(getSuivi(c.id).passages)||{};
+  document.getElementById('modal-title').textContent='Renouveler le contrat';
+  document.getElementById('f-num').value=base?base+'-R'+(nb+1):'';
+  document.getElementById('f-client').value=c.client||'';
+  document.getElementById('f-debut').value=debut;
+  document.getElementById('f-fin').value=isoShift(debut,1,-1);
+  document.getElementById('f-montant').value=c.montant_annuel||'';
+  document.getElementById('f-freq-paiement').value=c.freq_paiement||'annuel';
+  document.getElementById('f-color').value=c.color||'#1D9E75';
+  // Passages de l'an dernier décalés d'un an (dates modifiables ensuite)
+  passageFields=(c.passages||[]).map((d,i)=>{
+    const eff=(sp['p'+i]&&sp['p'+i].date)||d;
+    return eff?isoShift(eff,1,0):'';
+  }).filter(Boolean);
+  renderPassageFields();
 }
 
 function closeModal(){document.getElementById('overlay').classList.remove('open');}
@@ -639,6 +680,7 @@ function renderContrat(c){
         </div>
       </div>
       <div class="header-actions" onclick="event.stopPropagation()">
+        <button class="btn btn-secondary btn-sm" onclick="openRenewModal(${c.id})" title="Renouveler pour 1 an (nouveau tarif possible)">🔄 Renouveler</button>
         <button class="btn btn-secondary btn-sm" onclick="openModal(${c.id})">✏️</button>
         <button class="btn btn-danger btn-sm" onclick="deleteContrat(${c.id})">🗑</button>
       </div>
