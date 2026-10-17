@@ -194,6 +194,18 @@ const FREQ_NB={annuel:1,semestriel:2,trimestriel:4,mensuel:12};
 const FREQ_FR={annuel:'Annuel',semestriel:'Semestriel',trimestriel:'Trimestriel',mensuel:'Mensuel'};
 
 let CONTRATS=[];
+let showOld=false;
+function isOld(c){return !!c.fin&&c.fin<new Date().toISOString().slice(0,10);}
+function toggleOld(){showOld=!showOld;renderAll();renderGantt();}
+// Gantt : les contrats terminés sont masqués pour l'année en cours, mais restent visibles
+// quand on consulte une année passée où ils étaient actifs.
+function ganttContrats(){
+  const curY=new Date().getFullYear();
+  return CONTRATS.filter(c=>{
+    if(showOld||!isOld(c))return true;
+    return ganttYear<curY&&new Date(c.debut)<=new Date(ganttYear,11,31)&&new Date(c.fin)>=new Date(ganttYear,0,1);
+  });
+}
 let SUIVI={};
 
 function syncOn(){document.getElementById('sync').classList.add('on');}
@@ -236,7 +248,7 @@ function renderGantt(){
 
   let html=`<div class="gantt-section">
     <div class="gantt-controls">
-      <div class="gantt-controls-left">${ybtns}</div>
+      <div class="gantt-controls-left">${ybtns}${CONTRATS.some(isOld)?`<button class="ybtn${showOld?' active':''}" style="margin-left:10px" onclick="toggleOld()">📁 Anciens contrats (${CONTRATS.filter(isOld).length})</button>`:''}</div>
       <div class="gantt-legend">
         <div class="gantt-leg"><div class="gantt-leg-dot"></div><span>Effectué</span></div>
         <div class="gantt-leg"><div class="gantt-leg-dot" style="opacity:0.3"></div><span>À faire</span></div>
@@ -250,7 +262,7 @@ function renderGantt(){
   });
   html+='<th>Total</th></tr></thead><tbody>';
 
-  CONTRATS.forEach(c=>{
+  ganttContrats().forEach(c=>{
     const active=new Date(c.debut)<=new Date(ganttYear,11,31)&&new Date(c.fin)>=new Date(ganttYear,0,1);
     const byMonth=getGanttByMonth(c,ganttYear);
     const total=Object.values(byMonth).reduce((s,v)=>s+v.length,0);
@@ -285,7 +297,7 @@ function renderGantt(){
   html+='<tr class="gfoot-row"><td class="gcol-client">/ mois</td>';
   for(let m=0;m<12;m++){
     const isCur=m===curM&&ganttYear===curY;
-    const count=CONTRATS.filter(c=>{
+    const count=ganttContrats().filter(c=>{
       const active=new Date(c.debut)<=new Date(ganttYear,11,31)&&new Date(c.fin)>=new Date(ganttYear,0,1);
       return active&&(getGanttByMonth(c,ganttYear)[m]||[]).length>0;
     }).length;
@@ -482,7 +494,7 @@ async function deleteContrat(dbId){
 // ── SUIVI ──
 function getSuivi(dbId){return SUIVI[dbId]||{passages:{},factures:{}};}
 
-async function saveSuivi(dbId){
+async function saveSuivi(dbId,auto){
   if(!dbId)return;
   const passages={};const factures={};
   document.querySelectorAll(`[data-dbid="${dbId}"]`).forEach(el=>{
@@ -494,9 +506,28 @@ async function saveSuivi(dbId){
   SUIVI[dbId].passages=passages;
   SUIVI[dbId].factures=factures;
   await dbSaveSuivi(dbId,passages,factures);
+  renderGantt();
+  majCompteur(dbId);
   const ok=document.getElementById('ok-'+dbId);
-  if(ok){ok.style.display='inline';setTimeout(()=>{ok.style.display='none';renderAll();},1200);}
+  if(ok){ok.style.display='inline';setTimeout(()=>{ok.style.display='none';if(!auto)renderAll();},1200);}
 }
+
+function majCompteur(dbId){
+  const c=CONTRATS.find(x=>x.id==dbId);if(!c)return;
+  const sp=getSuivi(dbId).passages||{};
+  const nbFait=(c.passages||[]).filter((_,i)=>(sp['p'+i]?.statut||'prevu')==='fait').length;
+  const el=document.getElementById('cnt-'+dbId);
+  if(el)el.textContent=nbFait+'/'+(c.passages||[]).length+' passages effectués';
+}
+
+// Enregistrement automatique dès qu'un champ de suivi change (plus besoin de cliquer sur « Enregistrer »)
+const autoSaveTimers={};
+document.addEventListener('change',e=>{
+  const id=e.target&&e.target.dataset&&e.target.dataset.dbid;
+  if(!id)return;
+  clearTimeout(autoSaveTimers[id]);
+  autoSaveTimers[id]=setTimeout(()=>saveSuivi(id,true),400);
+});
 
 // ── FACTURES ──
 function getFactures(c){
@@ -676,7 +707,7 @@ function renderContrat(c){
         <div class="meta">
           <span class="badge" style="background:${color}22;color:${color}">${c.num_contrat||''}</span>
           ${fmt(c.debut)} → ${fmt(c.fin)} &nbsp;·&nbsp; ${(c.montant_annuel||0).toLocaleString('fr-FR',{minimumFractionDigits:2})} €/an
-          &nbsp;·&nbsp; ${nbFait}/${(c.passages||[]).length} passages effectués
+          &nbsp;·&nbsp; <span id="cnt-${c.id}">${nbFait}/${(c.passages||[]).length} passages effectués</span>${isOld(c)?' &nbsp;<span class="badge" style="background:#eee;color:#888">Terminé</span>':''}
         </div>
       </div>
       <div class="header-actions" onclick="event.stopPropagation()">
@@ -715,9 +746,12 @@ function toggle(id){
 function renderAll(){
   const opens={};
   CONTRATS.forEach(c=>{opens[c.id]=document.getElementById('body-'+c.id)?.classList.contains('open');});
-  document.getElementById('app').innerHTML=CONTRATS.length
-    ?CONTRATS.map(renderContrat).join('')
-    :'<div class="empty">Aucun contrat — cliquez sur "+ Nouveau contrat"</div>';
+  const vis=CONTRATS.filter(c=>showOld||!isOld(c));
+  const nOld=CONTRATS.filter(isOld).length;
+  const bar=nOld?`<div style="margin:0 0 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><button class="btn btn-secondary btn-sm" onclick="toggleOld()">📁 ${showOld?'Masquer':'Afficher'} les anciens contrats (${nOld})</button>${showOld?'':'<span style="font-size:12px;color:#999">Contrats dont la date de fin est passée</span>'}</div>`:'';
+  document.getElementById('app').innerHTML=bar+(vis.length
+    ?vis.map(renderContrat).join('')
+    :(CONTRATS.length?'<div class="empty">Aucun contrat en cours</div>':'<div class="empty">Aucun contrat — cliquez sur "+ Nouveau contrat"</div>'));
   CONTRATS.forEach(c=>{
     if(opens[c.id]){
       document.getElementById('body-'+c.id)?.classList.add('open');
