@@ -276,6 +276,7 @@ body{background:var(--bg);color:var(--tx);font-family:'DM Sans',sans-serif;min-h
   <button class="mn-item" id="mn-facturation" onclick="go('facturation')"><span class="mn-icon">💶</span><span class="mn-lbl">Factures</span></button>
   <button class="mn-item" id="mn-frelons" onclick="go('frelons')"><span class="mn-icon">🐝</span><span class="mn-lbl">Frelons</span></button>
   <button class="mn-item" onclick="window.location.href='contrats.html'"><span class="mn-icon">📄</span><span class="mn-lbl">Contrats</span></button>
+  <button class="mn-item" onclick="if(confirm('Se déconnecter ?'))logout()"><span class="mn-icon">🔒</span><span class="mn-lbl">Sortir</span></button>
 </nav>
 
 <!-- DRAWER -->
@@ -327,6 +328,7 @@ body{background:var(--bg);color:var(--tx);font-family:'DM Sans',sans-serif;min-h
       <div class="sb-item" id="si-facturation" onclick="go('facturation')"><span class="ic">💶</span>Facturation</div>
       <div class="sb-item" id="si-frelons" onclick="go('frelons')"><span class="ic">🐝</span>Frelons asiatiques</div>
       <div class="sb-item" id="si-contrats" onclick="window.location.href='contrats.html'"><span class="ic">📄</span>Contrats</div>
+      <div class="sb-item" onclick="logout()" style="margin-top:14px"><span class="ic">🔒</span>Déconnexion</div>
     </nav>
     <div class="sb-foot"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="88ebe7e6fce9ebfcc8fbefeee6fde1fbe1eae4edfba6eefa">[email&#160;protected]</a></div>
   </aside>
@@ -912,7 +914,7 @@ function openTerrain(passageId){
       if(rm.texte)h+='<div style="font-size:13px;white-space:pre-wrap;margin-bottom:'+((rm.photos&&rm.photos.length)?'6':'0')+'px">'+rm.texte.replace(/</g,'&lt;')+'</div>';
       if(rm.photos&&rm.photos.length){
         h+='<div style="display:flex;gap:6px;flex-wrap:wrap">';
-        rm.photos.forEach(function(u){h+='<a href="'+u+'" target="_blank"><img src="'+u+'" style="width:84px;height:84px;object-fit:cover;border-radius:8px;border:1px solid var(--bord)"></a>';});
+        rm.photos.forEach(function(u){h+='<a href="'+ph(u)+'" target="_blank"><img src="'+ph(u)+'" style="width:84px;height:84px;object-fit:cover;border-radius:8px;border:1px solid var(--bord)"></a>';});
         h+='</div>';
       }
       h+='</div>';
@@ -1041,7 +1043,7 @@ function buildPinPopup(pid,passageId,isRO){
   var h='<div class="pin-pop" style="left:'+left+';right:'+right+';top:'+top+';bottom:'+bottom+'" onclick="event.stopPropagation()">';
   h+='<div class="pp-head"><div><div class="pp-title">'+ ptype.icon+' '+p.label+'</div><div class="pp-sub">'+ptype.label+(p.zone?' · '+p.zone:'' )+'</div></div><button class="pp-x" onclick="openPinId=null;openTerrain('+passageId+')">✕</button></div>';
 
-  if(p.photo_url)h+='<img src="'+p.photo_url+'" class="pp-photo">';
+  if(p.photo_url)h+='<img src="'+ph(p.photo_url)+'" class="pp-photo">';
 
   if(!isRO){
     // Si poste moustique → interface dédiée
@@ -1305,7 +1307,8 @@ function uploadRemarquePhoto(file,passageId){
     var fn='remarque-'+passageId+'-'+Date.now()+'-'+Math.floor(Math.random()*1000)+'.jpg';
     return db.storage.from('photos-postes').upload(fn,blob,{contentType:'image/jpeg',upsert:true}).then(function(r){
       if(r.error)throw r.error;
-      return db.storage.from('photos-postes').getPublicUrl(fn).data.publicUrl;
+      var pu=db.storage.from('photos-postes').getPublicUrl(fn).data.publicUrl;
+      return signUrls([pu]).then(function(){return pu;});
     });
   });
 }
@@ -1501,7 +1504,7 @@ function showListe(passageId){
         var bmap={ok:'var(--acc2)',actif:'var(--acc)',remplace:'var(--ora)',absent:'var(--tx3)'};
         var bg=s?bgmap[s]:'';var b=s?bmap[s]:'var(--bord)';
         h+='<div style="background:var(--surf);border:2px solid '+b+';border-radius:12px;padding:11px;'+bg+';cursor:pointer" onclick="openPosteDetail('+p.id+','+passageId+')">';
-        if(p.photo_url)h+='<img src="'+p.photo_url+'" style="width:100%;height:120px;object-fit:cover;border-radius:8px;margin-bottom:8px">';
+        if(p.photo_url)h+='<img src="'+ph(p.photo_url)+'" style="width:100%;height:120px;object-fit:cover;border-radius:8px;margin-bottom:8px">';
         h+='<div style="font-size:18px;margin-bottom:3px">'+ ptype.icon+'</div>';
         h+='<div style="font-size:12px;font-weight:600;margin-bottom:5px">'+p.label+'</div>';
         if(prod)h+='<div style="font-size:10px;color:var(--tx3);margin-bottom:3px">'+ ({placebo:'Placebo',toxique:'Toxique',capture:'Capture',aucun:'Aucun'}[prod]||prod)+(conso?' '+conso+'%':'')+'</div>';
@@ -1543,7 +1546,7 @@ function openPosteDetail(pid,passageId){
   h+='<div style="font-size:12px;color:var(--tx3);margin-bottom:14px">'+ptype.label+(p.zone?' — '+p.zone:'')+'</div>';
   // Photo
   if(p.photo_url){
-    h+='<img src="'+p.photo_url+'" style="width:100%;max-height:300px;object-fit:contain;border-radius:10px;margin-bottom:12px;background:#f0f0f0">';
+    h+='<img src="'+ph(p.photo_url)+'" style="width:100%;max-height:300px;object-fit:contain;border-radius:10px;margin-bottom:12px;background:#f0f0f0">';
   }
   h+='<label style="display:flex;align-items:center;gap:8px;background:var(--surf2);border:1px solid var(--bord);border-radius:10px;padding:10px 14px;cursor:pointer;margin-bottom:14px;font-size:13px;font-weight:600">📷 '+(p.photo_url?'Changer la photo':'Ajouter une photo')+'<input type="file" accept="image/*" capture="environment" style="display:none" onchange="uploadPostePhoto(event,'+pid+','+passageId+')"></label>';
   // Statut
@@ -1592,8 +1595,7 @@ function uploadPostePhoto(e,pid,passageId){
       db.from('postes').update({photo_url:url}).eq('id',pid).then(function(){
         var p=postes.find(function(x){return x.id===pid;});
         if(p)p.photo_url=url;
-        syncOff();toast('✓ Photo ajoutée');
-        openPosteDetail(pid,passageId);
+        signUrls([url]).then(function(){syncOff();toast('✓ Photo ajoutée');openPosteDetail(pid,passageId);});
       });
     });
   };
@@ -1725,7 +1727,7 @@ function uploadPinPhoto(e,posteId,passageId){
           var url=db.storage.from('photos-postes').getPublicUrl(fn).data.publicUrl;
           var poste=postes.find(function(p){return p.id==posteId;});
           db.from('postes').update({photo_url:url}).eq('id',posteId).then(function(){
-            if(poste)poste.photo_url=url;syncOff();toast('✓ Photo enregistrée !');openTerrain(passageId);
+            if(poste)poste.photo_url=url;signUrls([url]).then(function(){syncOff();toast('✓ Photo enregistrée !');openTerrain(passageId);});
           });
         });
       },'image/jpeg',0.75);
@@ -1812,7 +1814,7 @@ function renderRapports(){
 
 // ═══ PDF ═══
 function urlToDataURL(url){
-  return fetch(url).then(function(r){if(!r.ok)throw new Error('fetch fail');return r.blob();}).then(function(blob){
+  return fetch(ph(url)).then(function(r){if(!r.ok)throw new Error('fetch fail');return r.blob();}).then(function(blob){
     return new Promise(function(resolve,reject){
       var reader=new FileReader();
       reader.onload=function(){resolve(reader.result);};
@@ -3519,9 +3521,73 @@ function exportFrelonsCSV(){
   toast('💾 Export téléchargé');
 }
 
+// ═══ AUTHENTIFICATION ═══
+async function authGate(startFn){
+  db.auth.onAuthStateChange(function(ev){if(ev==='SIGNED_OUT')location.reload();});
+  var r=await db.auth.getSession();
+  if(r.data&&r.data.session){startFn();return;}
+  showLogin(startFn);
+}
+function showLogin(startFn){
+  var ov=document.getElementById('login-ov');
+  if(!ov){ov=document.createElement('div');ov.id='login-ov';document.body.appendChild(ov);}
+  ov.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:#f4f5f2;display:flex;align-items:center;justify-content:center;padding:20px;font-family:DM Sans,Arial,sans-serif';
+  var inp='width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #d5d9d2;border-radius:10px;font-size:16px;margin-bottom:10px';
+  ov.innerHTML=
+    '<form id="login-form" style="background:#fff;border:1px solid #e0e3de;border-radius:16px;padding:28px 24px;width:100%;max-width:340px;box-shadow:0 8px 30px rgba(0,0,0,.08)">'+
+    '<div style="font-size:22px;font-weight:800;letter-spacing:1px;margin-bottom:4px">SGF NUISIBLES</div>'+
+    '<div style="font-size:13px;color:#777;margin-bottom:18px">Connexion requise</div>'+
+    '<input id="login-email" type="email" autocomplete="email" placeholder="E-mail" required style="'+inp+'">'+
+    '<input id="login-pass" type="password" autocomplete="current-password" placeholder="Mot de passe" required style="'+inp+'">'+
+    '<div id="login-err" style="color:#e63030;font-size:13px;min-height:18px;margin-bottom:8px"></div>'+
+    '<button id="login-btn" type="submit" style="width:100%;padding:12px;border:none;border-radius:10px;background:#e63030;color:#fff;font-size:15px;font-weight:700;cursor:pointer">Se connecter</button>'+
+    '</form>';
+  document.getElementById('login-form').onsubmit=async function(e){
+    e.preventDefault();
+    var btn=document.getElementById('login-btn'),err=document.getElementById('login-err');
+    btn.disabled=true;btn.textContent='Connexion…';err.textContent='';
+    var r=await db.auth.signInWithPassword({email:document.getElementById('login-email').value.trim(),password:document.getElementById('login-pass').value});
+    if(r.error){err.textContent='Identifiants incorrects';btn.disabled=false;btn.textContent='Se connecter';return;}
+    ov.parentNode.removeChild(ov);
+    startFn();
+  };
+}
+async function logout(){
+  await db.auth.signOut();
+  location.reload();
+}
+
+// ═══ PHOTOS PROTÉGÉES (liens signés temporaires) ═══
+var SIGNED={};
+function parseStorageUrl(u){
+  var m=(u||'').match(/\/storage\/v1\/object\/(?:public|sign)\/([^\/]+)\/(.+?)(?:\?.*)?$/);
+  return m?{bucket:m[1],path:decodeURIComponent(m[2])}:null;
+}
+async function signUrls(urls){
+  var byB={};
+  (urls||[]).forEach(function(u){
+    if(!u||SIGNED[u])return;
+    var p=parseStorageUrl(u);if(!p)return;
+    (byB[p.bucket]=byB[p.bucket]||[]).push({u:u,path:p.path});
+  });
+  for(var b in byB){
+    var r=await db.storage.from(b).createSignedUrls(byB[b].map(function(x){return x.path;}),43200);
+    if(r.error||!r.data)continue;
+    r.data.forEach(function(d,i){if(d&&d.signedUrl)SIGNED[byB[b][i].u]=d.signedUrl;});
+  }
+}
+function ph(u){return SIGNED[u]||u;}
+async function signAllPhotos(){
+  var urls=[];
+  postes.forEach(function(p){if(p.photo_url)urls.push(p.photo_url);});
+  passages.forEach(function(pa){(Array.isArray(pa.remarques)?pa.remarques:[]).forEach(function(rm){(rm.photos||[]).forEach(function(u){urls.push(u);});});});
+  await signUrls(urls);
+}
+
 async function init(){
   try{
     await loadAll();
+    await signAllPhotos();
     document.getElementById('load').classList.add('hide');
     go('clients');
     toast('✅ Connecté !');
@@ -3531,7 +3597,7 @@ async function init(){
     if(msg){msg.style.color='#e63030';msg.style.fontSize='13px';msg.textContent='⚠️ Erreur : '+err.message+' — Rechargez la page';}
   }
 }
-init();
+authGate(init);
 </script>
 </body>
 </html>

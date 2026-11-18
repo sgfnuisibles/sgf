@@ -116,7 +116,10 @@ textarea.cr{border:1px solid #e0e0e0;border-radius:6px;padding:4px 8px;font-size
       <div class="subtitle">Passages terrain &amp; échéancier de facturation</div>
     </div>
   </div>
-  <button class="btn btn-primary" onclick="openModal()">+ Nouveau contrat</button>
+  <div style="display:flex;gap:6px">
+    <button class="btn btn-secondary" onclick="if(confirm('Se déconnecter ?'))logout()" title="Déconnexion">🔒</button>
+    <button class="btn btn-primary" onclick="openModal()">+ Nouveau contrat</button>
+  </div>
 </div>
 
 <div id="gantt-section"></div>
@@ -760,7 +763,42 @@ function renderAll(){
   });
 }
 
-loadAll();
+// ═══ AUTHENTIFICATION ═══
+async function authGate(startFn){
+  db.auth.onAuthStateChange(function(ev){if(ev==='SIGNED_OUT')location.reload();});
+  var r=await db.auth.getSession();
+  if(r.data&&r.data.session){startFn();return;}
+  showLogin(startFn);
+}
+function showLogin(startFn){
+  var ov=document.getElementById('login-ov');
+  if(!ov){ov=document.createElement('div');ov.id='login-ov';document.body.appendChild(ov);}
+  ov.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:#f4f5f2;display:flex;align-items:center;justify-content:center;padding:20px;font-family:DM Sans,Arial,sans-serif';
+  var inp='width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #d5d9d2;border-radius:10px;font-size:16px;margin-bottom:10px';
+  ov.innerHTML=
+    '<form id="login-form" style="background:#fff;border:1px solid #e0e3de;border-radius:16px;padding:28px 24px;width:100%;max-width:340px;box-shadow:0 8px 30px rgba(0,0,0,.08)">'+
+    '<div style="font-size:22px;font-weight:800;letter-spacing:1px;margin-bottom:4px">SGF NUISIBLES</div>'+
+    '<div style="font-size:13px;color:#777;margin-bottom:18px">Connexion requise</div>'+
+    '<input id="login-email" type="email" autocomplete="email" placeholder="E-mail" required style="'+inp+'">'+
+    '<input id="login-pass" type="password" autocomplete="current-password" placeholder="Mot de passe" required style="'+inp+'">'+
+    '<div id="login-err" style="color:#e63030;font-size:13px;min-height:18px;margin-bottom:8px"></div>'+
+    '<button id="login-btn" type="submit" style="width:100%;padding:12px;border:none;border-radius:10px;background:#e63030;color:#fff;font-size:15px;font-weight:700;cursor:pointer">Se connecter</button>'+
+    '</form>';
+  document.getElementById('login-form').onsubmit=async function(e){
+    e.preventDefault();
+    var btn=document.getElementById('login-btn'),err=document.getElementById('login-err');
+    btn.disabled=true;btn.textContent='Connexion…';err.textContent='';
+    var r=await db.auth.signInWithPassword({email:document.getElementById('login-email').value.trim(),password:document.getElementById('login-pass').value});
+    if(r.error){err.textContent='Identifiants incorrects';btn.disabled=false;btn.textContent='Se connecter';return;}
+    ov.parentNode.removeChild(ov);
+    startFn();
+  };
+}
+async function logout(){
+  await db.auth.signOut();
+  location.reload();
+}
+authGate(loadAll);
 </script>
 </body>
 </html>
